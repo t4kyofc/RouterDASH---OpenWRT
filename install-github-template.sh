@@ -41,6 +41,10 @@ normalize_text() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
+normalize_text() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 prompt_value() {
   prompt="$1"
   if has_tty; then
