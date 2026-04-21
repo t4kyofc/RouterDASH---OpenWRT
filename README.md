@@ -4,7 +4,8 @@
 
 <p align="center">
   <b>Open-source dashboard for OpenWrt</b><br>
-  Мониторинг устройств, скорости, соединений, активности и Telegram-уведомления.
+  Мониторинг устройств, скорости, соединений, активности и Telegram-уведомления.<br>
+  Device monitoring, live speed, connections, activity, and Telegram notifications.
 </p>
 
 <p align="center">
@@ -14,81 +15,99 @@
   <img alt="License" src="https://img.shields.io/badge/License-MIT-success?style=for-the-badge">
 </p>
 
-## Что это
+## RouterDash
 
-**RouterDash** — лёгкий веб-интерфейс для OpenWrt, который показывает устройства в сети, текущую скорость, активные соединения, историю присутствия и события для Telegram-уведомлений.
+**RouterDash** is a lightweight OpenWrt web dashboard that shows devices in the network, live speed, active connections, online history, and Telegram notifications.
 
-Проект рассчитан на запуск прямо на роутере и использует штатные механизмы OpenWrt: `nlbwmon`, `ubus`, DHCP leases и `ip neigh`.
+**RouterDash** — лёгкая веб-панель для OpenWrt, которая показывает устройства в сети, текущую скорость, активные соединения, историю присутствия и Telegram-уведомления.
 
-## Возможности
+The project runs directly on the router and uses standard OpenWrt components: `nlbwmon`, `ubus`, DHCP leases, and `ip neigh`.
 
-- список всех обнаруженных устройств по MAC-адресу;
-- текущая скорость скачивания и отдачи;
-- количество активных соединений;
-- статусы устройств: подключен, малоактивен, отключен;
-- история событий и панель логов;
-- Telegram-уведомления по выбранным устройствам;
-- веб-настройка порогов активности, polling interval и учётных данных администратора;
-- поддержка IPv6 в интерфейсе.
+## Features / Возможности
 
-## Требования
+- RU/EN interface with a language selector in the bottom-right corner;
+- safe default settings for low-power devices;
+- default local network: `192.168.0.0/24`;
+- per-device live download/upload speed;
+- active connection counters and destination details;
+- online / idle / offline detection;
+- history log overlay;
+- Telegram notifications for selected devices;
+- first-run admin setup from the web UI.
+
+## Requirements / Требования
 
 - **OpenWrt 25.12+**
-- пакетный менеджер **apk**
-- доступ по SSH к роутеру
-- файлы проекта в одной папке:
-  - `install.sh`
-  - `routerdash.py`
-  - `routerdash.init`
+- **apk** package manager
+- SSH access to the router
+- internet access for GitHub-based installation
 
-## Быстрая установка
+## Quick install / Быстрая установка
 
-Установка выполняется **только через `install.sh`**.
+Recommended one-liner:
 
-### 1. Скопируйте файлы на роутер
+```sh
+wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
+```
 
-Пример:
+Alternative for systems with `uclient-fetch`:
+
+```sh
+uclient-fetch -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
+```
+
+What the installer does:
+
+1. asks for language first: **Русский** or **English**;
+2. if RouterDash is already installed, offers **install/update**, **remove**, or **reinstall**;
+3. downloads the required files from GitHub;
+4. installs packages and enables the service;
+5. saves the chosen interface language as the default in RouterDash.
+
+> Do not use `sh <(wget -O - ...)` as the primary README command. On many systems stdin gets occupied by the script body, which breaks interactive prompts. The new installer is compatible with direct file execution and is safer for OpenWrt.
+
+## Manual local install / Локальная установка
 
 ```sh
 scp install.sh routerdash.py routerdash.init root@192.168.1.1:/tmp/routerdash/
-```
-
-### 2. Подключитесь по SSH
-
-```sh
 ssh root@192.168.1.1
-```
-
-### 3. Запустите установщик
-
-```sh
 cd /tmp/routerdash
 chmod +x install.sh
 ./install.sh
 ```
 
-## Что делает install.sh
+You can also pass arguments:
 
-Скрипт:
-
-- устанавливает пакеты `python3`, `python3-flask`, `ca-bundle`, `nlbwmon`, `iwinfo`;
-- копирует приложение в `/opt/routerdash/routerdash.py`;
-- ставит init-скрипт в `/etc/init.d/routerdash`;
-- включает и перезапускает `nlbwmon`;
-- включает и запускает `routerdash`;
-- после установки предлагает открыть панель по адресу `http://ROUTER_IP:1999`.
-
-## Первый запуск
-
-После установки откройте в браузере:
-
-```text
-http://192.168.1.1:1999
+```sh
+./install.sh install en
+./install.sh uninstall ru
+./install.sh reinstall en
+./install.sh status
 ```
 
-При первом входе RouterDash попросит создать логин и пароль администратора.
+## Remove RouterDash / Удаление
 
-## Управление сервисом
+Remote uninstall from GitHub installer:
+
+```sh
+wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh uninstall
+```
+
+Or locally:
+
+```sh
+./install.sh uninstall
+```
+
+Removal deletes:
+
+- `/opt/routerdash`
+- `/etc/routerdash`
+- `/etc/init.d/routerdash`
+
+Installed packages such as `python3`, `python3-flask`, and `nlbwmon` are kept.
+
+## Service management / Управление сервисом
 
 ```sh
 /etc/init.d/routerdash status
@@ -97,66 +116,14 @@ http://192.168.1.1:1999
 /etc/init.d/routerdash start
 ```
 
-Логи:
+## Defaults / Значения по умолчанию
 
-```sh
-logread -e routerdash
-```
-
-## Быстрое удаление
-
-Текущий `install.sh` устанавливает проект, но не содержит отдельного режима uninstall.  
-Поэтому удаление выполняется вручную следующими командами:
-
-```sh
-/etc/init.d/routerdash stop || true
-/etc/init.d/routerdash disable || true
-rm -f /etc/init.d/routerdash
-rm -rf /opt/routerdash
-rm -rf /etc/routerdash
-```
-
-### Опционально: убрать установленные зависимости
-
-Делайте это только если они не нужны другим сервисам на роутере:
-
-```sh
-apk del python3 python3-flask ca-bundle iwinfo nlbwmon
-```
-
-> `nlbwmon` может использоваться и другими сценариями, поэтому удаляйте его только если точно уверены.
-
-## Важное замечание по удалению
-
-Во время установки скрипт меняет конфигурацию `nlbwmon` через `uci`.  
-Если вы хотите полностью вернуть прежние параметры, проверьте вручную файл конфигурации OpenWrt и сервис `nlbwmon`.
-
-## Если интерфейс не открывается
-
-Проверьте, что сервис запущен:
-
-```sh
-ps | grep routerdash
-ss -lntp | grep 1999
-```
-
-Если доступ к самому роутеру ограничен firewall, разрешите TCP-порт `1999`.
-
-## Структура проекта
-
-```text
-.
-├── install.sh
-├── routerdash.py
-└── routerdash.init
-```
-
-## Roadmap
-
-- режим uninstall через `install.sh uninstall`;
-- экспорт/импорт настроек;
-- более гибкие Telegram-правила;
-- дополнительные сетевые метрики.
+- port: `1999`
+- polling interval: `1500 ms`
+- offline grace: `120 sec`
+- activity threshold: `250 Kbit/s`
+- local network: `192.168.0.0/24`
+- interface language: selected during installation
 
 ## License
 
