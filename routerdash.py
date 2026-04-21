@@ -181,6 +181,9 @@ I18N = {
         "tg_test_sent": "Тестовое сообщение отправлено.",
         "telegram_error": "Ошибка Telegram: {msg}",
         "tg_token_chat_missing": "Не заполнены token/chat_id",
+        "local_network_invalid": "Некорректная локальная сеть IPv4 в формате CIDR.",
+        "network_changed_restarting": "Параметр локальной сети изменён. Сервис перезапускается.",
+        "network_changed_reload": "Параметр локальной сети изменён. Панель обновится после перезапуска сервиса.",
         "port_range": "Порт должен быть в диапазоне 1-65535.",
         "port_changed_restarting": "Порт изменён на {port}. Сервис перезапускается.",
         "port_changed_reload": "Порт изменён на {port}. Обновите адрес панели после перезапуска сервиса.",
@@ -315,6 +318,9 @@ I18N = {
         "tg_test_sent": "Test message sent.",
         "telegram_error": "Telegram error: {msg}",
         "tg_token_chat_missing": "token/chat_id is not set",
+        "local_network_invalid": "Invalid local IPv4 network in CIDR format.",
+        "network_changed_restarting": "Local network setting changed. The service is restarting.",
+        "network_changed_reload": "Local network setting changed. The panel will reload after the service restarts.",
         "port_range": "Port must be in the range 1-65535.",
         "port_changed_restarting": "Port changed to {port}. The service is restarting.",
         "port_changed_reload": "Port changed to {port}. Reload the panel using the new address after the service restarts.",
@@ -1917,7 +1923,13 @@ def safe_network(value: str) -> Optional[ipaddress._BaseNetwork]:
 
 
 def filter_local_ips(ips: List[str], cidr: str, include_ipv6: bool = True) -> List[str]:
-    net = safe_network(cidr)
+    """Keep all sane device IPs in state.
+
+    The CIDR filter is applied later, only for dashboard presentation. Storing
+    raw device IPs prevents losing IPv4 addresses when the local network setting
+    changes from one subnet to another.
+    """
+    _ = cidr
     out: List[str] = []
     seen = set()
     for ip in ips:
@@ -1928,16 +1940,27 @@ def filter_local_ips(ips: List[str], cidr: str, include_ipv6: bool = True) -> Li
             addr = ipaddress.ip_address(ip)
         except Exception:
             continue
-        if addr.version == 4 and net is not None and addr not in net:
-            continue
-        if addr.version == 6:
+        if addr.version == 4:
+            if addr.is_unspecified or addr.is_loopback or addr.is_multicast:
+                continue
+        elif addr.version == 6:
             if not include_ipv6:
                 continue
             if addr.is_unspecified or addr.is_loopback or addr.is_multicast:
                 continue
+        else:
+            continue
         seen.add(ip)
         out.append(ip)
     return out
+
+
+def normalize_local_network_cidr(value: str) -> str:
+    raw = (value or '').strip() or DEFAULT_SETTINGS["local_network_cidr"]
+    net = safe_network(raw)
+    if net is None or getattr(net, "version", None) != 4:
+        raise ValueError(tr("local_network_invalid"))
+    return str(net)
 
 
 def split_device_ips(ips: List[str], local_ipv4_cidr: str, include_ipv6: bool = True) -> Tuple[List[str], List[str]]:
@@ -2212,6 +2235,34 @@ def schedule_service_restart(delay_sec: float = 1.0) -> bool:
         return True
     except Exception:
         return False
+
+
+def sync_state_device_ips(settings: Dict[str, Any]) -> None:
+    include_ipv6 = bool(settings.get("track_ipv6", True))
+    local_network_cidr = str(settings.get("local_network_cidr", DEFAULT_SETTINGS["local_network_cidr"]))
+    leases = monitor._get_dhcp_leases()
+    neigh = monitor._get_neighbors()
+    changed = False
+    with store.lock:
+        devices = store.state.setdefault("devices", {})
+        for mac, dev in devices.items():
+            merged_ips = filter_local_ips(
+                list(dev.get("ips", []))
+                + list(leases.get(mac, {}).get("ips", []))
+                + list(neigh.get(mac, {}).get("ips", [])),
+                local_network_cidr,
+                include_ipv6=include_ipv6,
+            )
+            if merged_ips != list(dev.get("ips", [])):
+                dev["ips"] = merged_ips
+                changed = True
+            ipv4_list, _ = split_device_ips(merged_ips, local_network_cidr, include_ipv6=include_ipv6)
+            new_last_ip = ipv4_list[0] if ipv4_list else ""
+            if new_last_ip != str(dev.get("last_ip", "") or ""):
+                dev["last_ip"] = new_last_ip
+                changed = True
+        if changed:
+            store.save_state()
 
 
 def run_cmd(args: List[str], timeout: int = 5) -> Tuple[int, str, str]:
@@ -3345,6 +3396,14 @@ def save_settings():
         if new_port < 1 or new_port > 65535:
             raise ValueError(tr("port_range"))
 
+        normalized_local_network = normalize_local_network_cidr(
+            (request.form.get("local_network_cidr") or DEFAULT_SETTINGS["local_network_cidr"]).strip()
+            or DEFAULT_SETTINGS["local_network_cidr"]
+        )
+        current_local_network = normalize_local_network_cidr(
+            str(current_settings.get("local_network_cidr", DEFAULT_SETTINGS["local_network_cidr"]))
+        )
+
         updated = {
             "port": new_port,
             "telegram_bot_token": (request.form.get("telegram_bot_token") or "").strip(),
@@ -3353,7 +3412,7 @@ def save_settings():
             "notification_total_kbps": max(1, int(request.form.get("notification_total_kbps") or DEFAULT_SETTINGS["notification_total_kbps"])),
             "poll_interval_ms": min(60000, max(250, int(request.form.get("poll_interval_ms") or DEFAULT_SETTINGS["poll_interval_ms"]))),
             "offline_grace_sec": min(600, max(10, int(request.form.get("offline_grace_sec") or DEFAULT_SETTINGS["offline_grace_sec"]))),
-            "local_network_cidr": (request.form.get("local_network_cidr") or DEFAULT_SETTINGS["local_network_cidr"]).strip() or DEFAULT_SETTINGS["local_network_cidr"],
+            "local_network_cidr": normalized_local_network,
             "track_ipv6": parse_bool_from_form("track_ipv6"),
             "telegram_enabled": parse_bool_from_form("telegram_enabled"),
             "notify_online": parse_bool_from_form("notify_online"),
@@ -3364,12 +3423,7 @@ def save_settings():
             "telegram_selected_devices": selected_devices,
         }
         store.update_settings(updated)
-
-        if not updated["track_ipv6"]:
-            with store.lock:
-                for dev in store.state.get("devices", {}).values():
-                    dev["ips"] = [ip for ip in dev.get("ips", []) if ":" not in str(ip)]
-                store.save_state()
+        sync_state_device_ips(updated)
 
         if updated["telegram_limit_to_selected_devices"]:
             store.add_event("settings", tr("settings_updated_selected", count=len(selected_devices)))
@@ -3377,13 +3431,18 @@ def save_settings():
             store.add_event("settings", tr("settings_updated"))
 
         port_changed = int(current_settings.get("port", 1999)) != int(updated["port"])
-        message = tr("settings_saved")
+        network_changed = current_local_network != updated["local_network_cidr"]
+        restart_required = port_changed or network_changed
         redirect_url = build_redirect_url(updated["port"], url_for("index"))
+        message = tr("settings_saved")
+        if port_changed:
+            message = tr("port_changed_restarting", port=updated["port"])
+        elif network_changed:
+            message = tr("network_changed_restarting")
 
         if is_json_request():
-            if port_changed:
+            if restart_required:
                 restarted = schedule_service_restart(delay_sec=0.8)
-                message = tr("port_changed_restarting", port=updated["port"])
                 return jsonify({
                     "ok": True,
                     "restart_required": True,
@@ -3401,9 +3460,14 @@ def save_settings():
                 "message": message,
             })
 
-        if port_changed:
+        if restart_required:
             schedule_service_restart(delay_sec=0.8)
-            session["flash_info"] = tr("port_changed_reload", port=updated["port"])
+            if port_changed:
+                session["flash_info"] = tr("port_changed_reload", port=updated["port"])
+            elif network_changed:
+                session["flash_info"] = tr("network_changed_reload")
+            else:
+                session["flash_info"] = message
         else:
             session["flash_info"] = message
     except Exception as exc:
@@ -3411,6 +3475,7 @@ def save_settings():
             return jsonify({"ok": False, "error": f"{tr('save_settings_failed')}: {exc}"}), 400
         session["flash_error"] = f"{tr('save_settings_failed')}: {exc}"
     return redirect(url_for("index"))
+
 
 
 @app.route("/settings/test_telegram", methods=["POST"])
