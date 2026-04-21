@@ -182,6 +182,6 @@ fi
 
 say start_local
 cd "$TMP_DIR"
-./install.sh "$ACTION" "$LANG_CODE"
+./install.sh --action="$ACTION" --lang="$LANG_CODE"
 
 say finished

@@ -292,6 +292,8 @@ install_routerdash() {
   mkdir -p "$APP_DIR" "$CONF_DIR"
 
   say step3
+  [ -f "$SCRIPT_DIR/routerdash.py" ] || { echo "routerdash.py not found in $SCRIPT_DIR"; exit 1; }
+  [ -f "$SCRIPT_DIR/routerdash.init" ] || { echo "routerdash.init not found in $SCRIPT_DIR"; exit 1; }
   cp "$SCRIPT_DIR/routerdash.py" "$APP_DIR/routerdash.py"
   chmod +x "$APP_DIR/routerdash.py"
   cp "$SCRIPT_DIR/routerdash.init" "$INIT_FILE"
@@ -304,14 +306,17 @@ install_routerdash() {
   configure_nlbwmon
 
   say step6
-  /etc/init.d/routerdash enable
-  /etc/init.d/routerdash restart
+  if [ -x "$INIT_FILE" ]; then
+    /etc/init.d/routerdash enable >/dev/null 2>&1 || true
+    /etc/init.d/routerdash restart >/dev/null 2>&1 || /etc/init.d/routerdash start >/dev/null 2>&1 || true
+  fi
 
   say step7
   sleep 2
   /etc/init.d/routerdash status || true
 
   LAN_IP="$(uci -q get network.lan.ipaddr || echo 192.168.1.1)"
+  LAN_IP="${LAN_IP%%/*}"
   say step8
   printf '%s http://%s:1999\n' "$(say open)" "$LAN_IP"
   say first
