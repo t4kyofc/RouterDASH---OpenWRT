@@ -2,9 +2,9 @@
 set -eu
 
 # Replace placeholders below after publishing the repository.
-ROUTERDASH_PY_URL="__ROUTERDASH_PY_URL__"
-ROUTERDASH_INIT_URL="__ROUTERDASH_INIT_URL__"
-ROUTERDASH_LOCAL_INSTALL_URL="__ROUTERDASH_LOCAL_INSTALL_URL__"
+ROUTERDASH_PY_URL="https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/routerdash.py"
+ROUTERDASH_INIT_URL="https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/routerdash.init"
+ROUTERDASH_LOCAL_INSTALL_URL="https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install.sh"
 
 TMP_DIR="/tmp/routerdash-install.$$"
 LANG_CHOICE="${ROUTERDASH_LANG:-}"
