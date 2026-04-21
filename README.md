@@ -1,5 +1,3 @@
-# RouterDash
-
 <p align="center">
   <img src="./docs/preview.png" alt="RouterDash preview" width="100%">
 </p>
