@@ -101,7 +101,7 @@ After installation the project uses these paths:
 - polling interval: `1500 ms`
 - offline grace: `120 sec`
 - activity threshold: `250 Kbit/s`
-- local network: `192.168.0.0/24`
+- local network: auto-detected from the current OpenWrt LAN settings
 
 ## Service management
 

@@ -8,8 +8,9 @@ ROUTERDASH_LOCAL_INSTALL_URL="$REPO_BASE/install.sh"
 ROUTERDASH_BLINKER_URL="$REPO_BASE/blinker.py"
 
 STAGE_DIR=/opt/routerdash-installer
+
 LANG_CHOICE="${ROUTERDASH_LANG:-}"
-ACTION_CHOICE="${ROUTERDASH_ACTION:-install}"
+ACTION_CHOICE="${ROUTERDASH_ACTION:-}"
 
 has_tty() {
   [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]
@@ -70,7 +71,7 @@ for arg in "$@"; do
       [ -n "$LANG_CHOICE" ] || LANG_CHOICE="$arg"
       ;;
     install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS)
-      ACTION_CHOICE="$arg"
+      [ -n "$ACTION_CHOICE" ] || ACTION_CHOICE="$arg"
       ;;
     --lang=*) LANG_CHOICE="${arg#--lang=}" ;;
     --action=*) ACTION_CHOICE="${arg#--action=}" ;;
@@ -94,27 +95,27 @@ choose_lang() {
 }
 
 LANG_CODE="$(choose_lang)"
-ACTION="$(normalize_action "$ACTION_CHOICE")"
 export ROUTERDASH_LANG="$LANG_CODE"
+ACTION="$(normalize_action "${ACTION_CHOICE:-install}")"
 export ROUTERDASH_ACTION="$ACTION"
 
 say() {
   key="$1"
-  case "${LANG_CODE}:$key" in
+  case "${LANG_CODE:-ru}:$key" in
     ru:title) echo "RouterDash GitHub-установщик" ;;
     en:title) echo "RouterDash GitHub installer" ;;
-    ru:stage) echo "Подготовка каталога /opt для скачивания" ;;
-    en:stage) echo "Preparing /opt staging directory" ;;
+    ru:stage) echo "Подготовка каталога загрузки в /opt" ;;
+    en:stage) echo "Preparing download directory in /opt" ;;
     ru:download) echo "Скачивание файлов RouterDash в /opt" ;;
     en:download) echo "Downloading RouterDash files to /opt" ;;
-    ru:chmod) echo "Применение прав доступа" ;;
+    ru:chmod) echo "Выставление прав доступа" ;;
     en:chmod) echo "Applying file permissions" ;;
     ru:run) echo "Запуск локального установщика" ;;
     en:run) echo "Starting local installer" ;;
-    ru:no_downloader) echo "Не найден загрузчик. Установите uclient-fetch, wget или curl." ;;
-    en:no_downloader) echo "No downloader found. Install uclient-fetch, wget or curl." ;;
     ru:done) echo "Готово" ;;
     en:done) echo "Done" ;;
+    ru:no_downloader) echo "Не найден загрузчик. Установите uclient-fetch, wget или curl." ;;
+    en:no_downloader) echo "No downloader found. Install uclient-fetch, wget or curl." ;;
     *) echo "$key" ;;
   esac
 }
@@ -160,7 +161,6 @@ setup_colors
 print_banner
 
 step 1 4 "$(say stage)"
-rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
 step 2 4 "$(say download)"

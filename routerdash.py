@@ -37,6 +37,7 @@ APP_NAME = "RouterDash"
 APP_DIR = os.environ.get("ROUTERDASH_DIR", "/etc/routerdash")
 CONFIG_FILE = os.path.join(APP_DIR, "config.json")
 STATE_FILE = os.path.join(APP_DIR, "state.json")
+LEGACY_DEFAULT_LOCAL_NETWORK_CIDR = "192.168.0.0/24"
 
 DEFAULT_SETTINGS = {
     "bind_host": "0.0.0.0",
@@ -185,6 +186,7 @@ I18N = {
         "local_network_invalid": "Некорректная локальная сеть IPv4 в формате CIDR.",
         "network_changed_restarting": "Параметр локальной сети изменён. Сервис перезапускается.",
         "network_changed_reload": "Параметр локальной сети изменён. Панель обновится после перезапуска сервиса.",
+        "network_changed_applied": "Параметр локальной сети изменён. Отображение клиентов обновлено.",
         "port_range": "Порт должен быть в диапазоне 1-65535.",
         "port_changed_restarting": "Порт изменён на {port}. Сервис перезапускается.",
         "port_changed_reload": "Порт изменён на {port}. Обновите адрес панели после перезапуска сервиса.",
@@ -322,6 +324,7 @@ I18N = {
         "local_network_invalid": "Invalid local IPv4 network in CIDR format.",
         "network_changed_restarting": "Local network setting changed. The service is restarting.",
         "network_changed_reload": "Local network setting changed. The panel will reload after the service restarts.",
+        "network_changed_applied": "Local network setting changed. Device display has been updated.",
         "port_range": "Port must be in the range 1-65535.",
         "port_changed_restarting": "Port changed to {port}. The service is restarting.",
         "port_changed_reload": "Port changed to {port}. Reload the panel using the new address after the service restarts.",
@@ -1956,8 +1959,110 @@ def filter_local_ips(ips: List[str], cidr: str, include_ipv6: bool = True) -> Li
     return out
 
 
+def _normalize_ipv4_network(value: str) -> Optional[str]:
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    net = safe_network(raw)
+    if net is None or getattr(net, "version", None) != 4:
+        return None
+    return str(net)
+
+
+def _first_ipv4_token(value: str) -> str:
+    for token in re.split(r"[\s,]+", str(value or '').strip()):
+        if not token:
+            continue
+        try:
+            addr = ipaddress.ip_address(token.split('/', 1)[0])
+        except Exception:
+            continue
+        if getattr(addr, 'version', None) == 4:
+            return token
+    return ''
+
+
+def _detect_ipv4_network_from_ip_and_mask(ip_value: str, mask_value: str = '') -> Optional[str]:
+    ip_token = _first_ipv4_token(ip_value)
+    if not ip_token:
+        return None
+    try:
+        if '/' in ip_token:
+            return str(ipaddress.ip_interface(ip_token).network)
+        mask_token = _first_ipv4_token(mask_value)
+        if mask_token:
+            return str(ipaddress.ip_network(f"{ip_token}/{mask_token}", strict=False))
+        return str(ipaddress.ip_network(f"{ip_token}/24", strict=False))
+    except Exception:
+        return None
+
+
+def detect_system_local_network_cidr() -> str:
+    fallback = LEGACY_DEFAULT_LOCAL_NETWORK_CIDR
+    ipaddr = ''
+    netmask = ''
+    rc, out, _ = run_cmd(["uci", "-q", "get", "network.lan.ipaddr"], timeout=3)
+    if rc == 0 and out:
+        ipaddr = out.strip()
+    rc, out, _ = run_cmd(["uci", "-q", "get", "network.lan.netmask"], timeout=3)
+    if rc == 0 and out:
+        netmask = out.strip()
+    detected = _detect_ipv4_network_from_ip_and_mask(ipaddr, netmask)
+    if detected:
+        return detected
+
+    lan_device = ''
+    for cmd in (["uci", "-q", "get", "network.lan.device"], ["uci", "-q", "get", "network.lan.ifname"]):
+        rc, out, _ = run_cmd(cmd, timeout=3)
+        if rc == 0 and out.strip():
+            lan_device = out.strip().split()[0]
+            break
+    device_candidates = [candidate for candidate in [lan_device, 'br-lan', 'lan'] if candidate]
+    seen = set()
+    for dev in device_candidates:
+        if dev in seen:
+            continue
+        seen.add(dev)
+        rc, out, _ = run_cmd(["ip", "-4", "addr", "show", "dev", dev], timeout=4)
+        if rc != 0 or not out:
+            continue
+        for line in out.splitlines():
+            line = line.strip()
+            if not line.startswith('inet '):
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                detected = _detect_ipv4_network_from_ip_and_mask(parts[1])
+                if detected:
+                    return detected
+
+    for cmd in (["ip", "-4", "route", "show", "dev", 'br-lan', 'scope', 'link'], ["ip", "-4", "route", "show", "scope", "link"]):
+        rc, out, _ = run_cmd(cmd, timeout=4)
+        if rc != 0 or not out:
+            continue
+        for line in out.splitlines():
+            token = line.strip().split()[0] if line.strip() else ''
+            detected = _normalize_ipv4_network(token)
+            if detected:
+                return detected
+
+    return fallback
+
+
+def get_effective_local_network_cidr(settings: Optional[Dict[str, Any]] = None) -> str:
+    raw = ''
+    if settings:
+        raw = str((settings or {}).get("local_network_cidr", "") or '').strip()
+    normalized = _normalize_ipv4_network(raw)
+    if normalized:
+        return normalized
+    return detect_system_local_network_cidr()
+
+
 def normalize_local_network_cidr(value: str) -> str:
-    raw = (value or '').strip() or DEFAULT_SETTINGS["local_network_cidr"]
+    raw = (value or '').strip()
+    if not raw or raw.lower() == 'auto':
+        return detect_system_local_network_cidr()
     net = safe_network(raw)
     if net is None or getattr(net, "version", None) != 4:
         raise ValueError(tr("local_network_invalid"))
@@ -2307,6 +2412,17 @@ class Store:
             if k not in settings:
                 settings[k] = deepcopy(v)
                 changed = True
+        system_local_network = detect_system_local_network_cidr()
+        current_local_network = str(settings.get("local_network_cidr", "") or '').strip()
+        normalized_local_network = _normalize_ipv4_network(current_local_network)
+        legacy_needs_upgrade = current_local_network in {'', LEGACY_DEFAULT_LOCAL_NETWORK_CIDR}
+        if normalized_local_network is None or (legacy_needs_upgrade and system_local_network != LEGACY_DEFAULT_LOCAL_NETWORK_CIDR):
+            if settings.get("local_network_cidr") != system_local_network:
+                settings["local_network_cidr"] = system_local_network
+                changed = True
+        elif normalized_local_network != current_local_network:
+            settings["local_network_cidr"] = normalized_local_network
+            changed = True
         for k, v in DEFAULT_STATE.items():
             if k not in self.state:
                 self.state[k] = deepcopy(v)
@@ -3178,7 +3294,7 @@ class Monitor:
             devices_meta = self.store.state.get("devices", {})
             current_settings = self.store.get_settings()
             include_ipv6 = bool(current_settings.get("track_ipv6", True))
-            local_network_cidr = str(current_settings.get("local_network_cidr", DEFAULT_SETTINGS["local_network_cidr"]))
+            local_network_cidr = get_effective_local_network_cidr(current_settings)
             for mac, meta in devices_meta.items():
                 rt = self.runtime.get(mac, {})
                 status = rt.get("status", meta.get("status", "offline"))
@@ -3276,6 +3392,7 @@ def index():
         return redirect(url_for("login"))
     payload = monitor.get_dashboard_payload()
     settings = store.get_settings()
+    settings["local_network_cidr"] = get_effective_local_network_cidr(settings)
     lang = get_current_lang(settings)
     show_ipv6 = bool(settings.get("track_ipv6", True))
     selected_macs = {normalize_mac(v) for v in settings.get("telegram_selected_devices", []) if v}
@@ -3399,12 +3516,9 @@ def save_settings():
             raise ValueError(tr("port_range"))
 
         normalized_local_network = normalize_local_network_cidr(
-            (request.form.get("local_network_cidr") or DEFAULT_SETTINGS["local_network_cidr"]).strip()
-            or DEFAULT_SETTINGS["local_network_cidr"]
+            (request.form.get("local_network_cidr") or "").strip()
         )
-        current_local_network = normalize_local_network_cidr(
-            str(current_settings.get("local_network_cidr", DEFAULT_SETTINGS["local_network_cidr"]))
-        )
+        current_local_network = get_effective_local_network_cidr(current_settings)
 
         updated = {
             "port": new_port,
@@ -3435,13 +3549,13 @@ def save_settings():
 
         port_changed = int(current_settings.get("port", 1999)) != int(updated["port"])
         network_changed = current_local_network != updated["local_network_cidr"]
-        restart_required = port_changed or network_changed
+        restart_required = port_changed
         redirect_url = build_redirect_url(updated["port"], url_for("index"))
         message = tr("settings_saved")
         if port_changed:
             message = tr("port_changed_restarting", port=updated["port"])
         elif network_changed:
-            message = tr("network_changed_restarting")
+            message = tr("network_changed_applied")
 
         if is_json_request():
             if restart_required:
@@ -3467,8 +3581,6 @@ def save_settings():
             schedule_service_restart(delay_sec=0.8)
             if port_changed:
                 session["flash_info"] = tr("port_changed_reload", port=updated["port"])
-            elif network_changed:
-                session["flash_info"] = tr("network_changed_reload")
             else:
                 session["flash_info"] = message
         else:

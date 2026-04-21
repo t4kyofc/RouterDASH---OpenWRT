@@ -101,7 +101,7 @@ sh ./install.sh --lang=ru --action=status
 - polling interval: `1500 ms`
 - offline grace: `120 sec`
 - activity threshold: `250 Kbit/s`
-- local network: `192.168.0.0/24`
+- local network: определяется автоматически по текущей LAN-сети OpenWrt
 
 ## Управление сервисом
 

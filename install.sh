@@ -242,8 +242,98 @@ copy_with_mode() {
   chmod "$mode" "$dst"
 }
 
+detect_local_network_cidr() {
+  python3 - <<'PY'
+import ipaddress
+import subprocess
+
+def run_cmd(args):
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True, timeout=3)
+        return proc.returncode, (proc.stdout or '').strip(), (proc.stderr or '').strip()
+    except Exception:
+        return 1, '', ''
+
+def first_ipv4_token(value: str) -> str:
+    for token in str(value or '').replace(',', ' ').split():
+        base = token.split('/', 1)[0]
+        try:
+            if ipaddress.ip_address(base).version == 4:
+                return token
+        except Exception:
+            continue
+    return ''
+
+def detect_from_ip_mask(ip_value: str, mask_value: str = ''):
+    token = first_ipv4_token(ip_value)
+    if not token:
+        return None
+    try:
+        if '/' in token:
+            return str(ipaddress.ip_interface(token).network)
+        mask_token = first_ipv4_token(mask_value)
+        if mask_token:
+            return str(ipaddress.ip_network(f"{token}/{mask_token}", strict=False))
+        return str(ipaddress.ip_network(f"{token}/24", strict=False))
+    except Exception:
+        return None
+
+fallback = '192.168.0.0/24'
+ipaddr = ''
+netmask = ''
+for cmd in (["uci", "-q", "get", "network.lan.ipaddr"], ["uci", "-q", "get", "network.lan.netmask"]):
+    rc, out, _ = run_cmd(cmd)
+    if rc == 0 and out:
+        if cmd[-1].endswith('ipaddr'):
+            ipaddr = out
+        else:
+            netmask = out
+
+detected = detect_from_ip_mask(ipaddr, netmask)
+if not detected:
+    lan_device = ''
+    for cmd in (["uci", "-q", "get", "network.lan.device"], ["uci", "-q", "get", "network.lan.ifname"]):
+        rc, out, _ = run_cmd(cmd)
+        if rc == 0 and out:
+            lan_device = out.split()[0]
+            break
+    for dev in [x for x in [lan_device, 'br-lan', 'lan'] if x]:
+        rc, out, _ = run_cmd(["ip", "-4", "addr", "show", "dev", dev])
+        if rc != 0 or not out:
+            continue
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith('inet '):
+                parts = line.split()
+                if len(parts) >= 2:
+                    detected = detect_from_ip_mask(parts[1])
+                    if detected:
+                        break
+        if detected:
+            break
+if not detected:
+    for cmd in (["ip", "-4", "route", "show", "dev", "br-lan", "scope", "link"], ["ip", "-4", "route", "show", "scope", "link"]):
+        rc, out, _ = run_cmd(cmd)
+        if rc != 0 or not out:
+            continue
+        for line in out.splitlines():
+            token = line.strip().split()[0] if line.strip() else ''
+            try:
+                net = ipaddress.ip_network(token, strict=False)
+                if net.version == 4:
+                    detected = str(net)
+                    break
+            except Exception:
+                continue
+        if detected:
+            break
+print(detected or fallback)
+PY
+}
+
 write_default_config() {
-  LANG_CODE="$LANG_CODE" CONF_DIR="$CONF_DIR" python3 - <<'PY'
+  ROUTERDASH_LOCAL_NETWORK_CIDR="$(detect_local_network_cidr)"
+  LANG_CODE="$LANG_CODE" CONF_DIR="$CONF_DIR" ROUTERDASH_LOCAL_NETWORK_CIDR="$ROUTERDASH_LOCAL_NETWORK_CIDR" python3 - <<'PY'
 import json
 import os
 from copy import deepcopy
@@ -268,7 +358,7 @@ defaults = {
         'poll_interval_ms': 1500,
         'offline_grace_sec': 120,
         'activity_total_kbps': 250,
-        'local_network_cidr': '192.168.0.0/24',
+        'local_network_cidr': os.environ.get('ROUTERDASH_LOCAL_NETWORK_CIDR', '192.168.0.0/24') or '192.168.0.0/24',
         'track_ipv6': True,
         'notify_online': True,
         'notify_offline': True,
