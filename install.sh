@@ -17,22 +17,22 @@ for arg in "$@"; do
         LANG_CHOICE="$arg"
       fi
       ;;
-    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS|3)
+    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS|1|2|3|4)
       if [ -z "$ACTION_CHOICE" ]; then
         ACTION_CHOICE="$arg"
       fi
       ;;
-    --lang=*)
-      LANG_CHOICE="${arg#--lang=}"
-      ;;
-    --action=*)
-      ACTION_CHOICE="${arg#--action=}"
-      ;;
+    --lang=*) LANG_CHOICE="${arg#--lang=}" ;;
+    --action=*) ACTION_CHOICE="${arg#--action=}" ;;
   esac
 done
 
 has_tty() {
   [ -r /dev/tty ] && [ -w /dev/tty ]
+}
+
+normalize_text() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 prompt_value() {
@@ -47,18 +47,18 @@ prompt_value() {
 }
 
 normalize_lang() {
-  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+  case "$(normalize_text "$1")" in
     2|en|eng|english) echo "en" ;;
     *) echo "ru" ;;
   esac
 }
 
 normalize_action() {
-  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+  case "$(normalize_text "$1")" in
     2|remove|delete|uninstall) echo "uninstall" ;;
     3|reinstall) echo "reinstall" ;;
-    status) echo "status" ;;
-    * ) echo "install" ;;
+    4|status) echo "status" ;;
+    *) echo "install" ;;
   esac
 }
 
@@ -103,43 +103,46 @@ say() {
     en:menu_remove) echo "  2) Remove RouterDash" ;;
     ru:menu_reinstall) echo "  3) Переустановить RouterDash" ;;
     en:menu_reinstall) echo "  3) Reinstall RouterDash" ;;
+    ru:menu_status) echo "  4) Показать статус" ;;
+    en:menu_status) echo "  4) Show status" ;;
     ru:default_install) echo "По умолчанию: установка." ;;
     en:default_install) echo "Default action: install." ;;
     ru:not_installed_install) echo "RouterDash не найден. Будет выполнена установка." ;;
     en:not_installed_install) echo "RouterDash not found. Installation will be performed." ;;
     ru:already_installed) echo "RouterDash уже установлен." ;;
     en:already_installed) echo "RouterDash is already installed." ;;
-
-    ru:step1) echo "[1/8] Установка пакетов..." ;;
-    en:step1) echo "[1/8] Installing packages..." ;;
-    ru:step2) echo "[2/8] Создание каталогов..." ;;
-    en:step2) echo "[2/8] Creating directories..." ;;
-    ru:step3) echo "[3/8] Установка файлов приложения..." ;;
-    en:step3) echo "[3/8] Installing app files..." ;;
-    ru:step4) echo "[4/8] Подготовка конфигурации по умолчанию..." ;;
-    en:step4) echo "[4/8] Preparing default configuration..." ;;
-    ru:step5) echo "[5/8] Настройка nlbwmon..." ;;
-    en:step5) echo "[5/8] Configuring nlbwmon..." ;;
-    ru:step6) echo "[6/8] Включение RouterDash..." ;;
-    en:step6) echo "[6/8] Enabling RouterDash..." ;;
-    ru:step7) echo "[7/8] Проверка сервиса..." ;;
-    en:step7) echo "[7/8] Checking service..." ;;
-    ru:step8) echo "[8/8] Готово." ;;
-    en:step8) echo "[8/8] Done." ;;
-
-    ru:remove1) echo "[1/4] Остановка RouterDash..." ;;
-    en:remove1) echo "[1/4] Stopping RouterDash..." ;;
-    ru:remove2) echo "[2/4] Отключение автозапуска..." ;;
-    en:remove2) echo "[2/4] Disabling autostart..." ;;
-    ru:remove3) echo "[3/4] Удаление файлов..." ;;
-    en:remove3) echo "[3/4] Removing files..." ;;
-    ru:remove4) echo "[4/4] RouterDash удалён." ;;
-    en:remove4) echo "[4/4] RouterDash removed." ;;
+    ru:install_step1) echo "[1/9] Установка пакетов..." ;;
+    en:install_step1) echo "[1/9] Installing packages..." ;;
+    ru:install_step2) echo "[2/9] Создание каталогов..." ;;
+    en:install_step2) echo "[2/9] Creating directories..." ;;
+    ru:install_step3) echo "[3/9] Установка файлов приложения..." ;;
+    en:install_step3) echo "[3/9] Installing app files..." ;;
+    ru:install_step4) echo "[4/9] Подготовка конфигурации..." ;;
+    en:install_step4) echo "[4/9] Preparing configuration..." ;;
+    ru:install_step5) echo "[5/9] Настройка nlbwmon..." ;;
+    en:install_step5) echo "[5/9] Configuring nlbwmon..." ;;
+    ru:install_step6) echo "[6/9] Включение RouterDash..." ;;
+    en:install_step6) echo "[6/9] Enabling RouterDash..." ;;
+    ru:install_step7) echo "[7/9] Запуск RouterDash..." ;;
+    en:install_step7) echo "[7/9] Starting RouterDash..." ;;
+    ru:install_step8) echo "[8/9] Проверка сервиса..." ;;
+    en:install_step8) echo "[8/9] Checking service..." ;;
+    ru:install_step9) echo "[9/9] Готово." ;;
+    en:install_step9) echo "[9/9] Done." ;;
+    ru:remove1) echo "[1/5] Остановка RouterDash..." ;;
+    en:remove1) echo "[1/5] Stopping RouterDash..." ;;
+    ru:remove2) echo "[2/5] Отключение автозапуска..." ;;
+    en:remove2) echo "[2/5] Disabling autostart..." ;;
+    ru:remove3) echo "[3/5] Удаление процессов..." ;;
+    en:remove3) echo "[3/5] Cleaning running processes..." ;;
+    ru:remove4) echo "[4/5] Удаление файлов..." ;;
+    en:remove4) echo "[4/5] Removing files..." ;;
+    ru:remove5) echo "[5/5] RouterDash удалён." ;;
+    en:remove5) echo "[5/5] RouterDash removed." ;;
     ru:remove_note) echo "Пакеты python3, flask и nlbwmon сохранены." ;;
     en:remove_note) echo "The python3, flask, and nlbwmon packages were kept." ;;
     ru:remove_missing) echo "RouterDash не найден. Удалять нечего." ;;
     en:remove_missing) echo "RouterDash not found. Nothing to remove." ;;
-
     ru:open) echo "Откройте в браузере:" ;;
     en:open) echo "Open in browser:" ;;
     ru:first) echo "При первом открытии панель предложит создать логин и пароль." ;;
@@ -169,7 +172,8 @@ choose_action() {
     say menu_install >/dev/tty
     say menu_remove >/dev/tty
     say menu_reinstall >/dev/tty
-    answer="$(prompt_value 'Choice [1/2/3, default 1]: ')"
+    say menu_status >/dev/tty
+    answer="$(prompt_value 'Choice [1/2/3/4, default 1]: ')"
     normalize_action "$answer"
     return
   fi
@@ -250,6 +254,7 @@ legacy_defaults = {
     'offline_grace_sec': {90},
     'activity_total_kbps': {500},
     'local_network_cidr': {'172.20.0.0/16', ''},
+    'bind_host': {'127.0.0.1', 'localhost', ''},
 }
 
 for key, value in defaults['settings'].items():
@@ -284,14 +289,14 @@ configure_nlbwmon() {
 install_routerdash() {
   ensure_apk
 
-  say step1
+  say install_step1
   apk update
   apk add python3 python3-flask ca-bundle nlbwmon iwinfo
 
-  say step2
+  say install_step2
   mkdir -p "$APP_DIR" "$CONF_DIR"
 
-  say step3
+  say install_step3
   [ -f "$SCRIPT_DIR/routerdash.py" ] || { echo "routerdash.py not found in $SCRIPT_DIR"; exit 1; }
   [ -f "$SCRIPT_DIR/routerdash.init" ] || { echo "routerdash.init not found in $SCRIPT_DIR"; exit 1; }
   cp "$SCRIPT_DIR/routerdash.py" "$APP_DIR/routerdash.py"
@@ -299,25 +304,27 @@ install_routerdash() {
   cp "$SCRIPT_DIR/routerdash.init" "$INIT_FILE"
   chmod +x "$INIT_FILE"
 
-  say step4
+  say install_step4
   write_default_config
 
-  say step5
+  say install_step5
   configure_nlbwmon
 
-  say step6
-  if [ -x "$INIT_FILE" ]; then
-    /etc/init.d/routerdash enable >/dev/null 2>&1 || true
-    /etc/init.d/routerdash restart >/dev/null 2>&1 || /etc/init.d/routerdash start >/dev/null 2>&1 || true
-  fi
+  say install_step6
+  /etc/init.d/routerdash enable >/dev/null 2>&1 || true
 
-  say step7
+  say install_step7
+  /etc/init.d/routerdash stop >/dev/null 2>&1 || true
+  rm -f "$PID_FILE"
+  /etc/init.d/routerdash start >/dev/null 2>&1 || true
+
+  say install_step8
   sleep 2
   /etc/init.d/routerdash status || true
 
   LAN_IP="$(uci -q get network.lan.ipaddr || echo 192.168.1.1)"
   LAN_IP="${LAN_IP%%/*}"
-  say step8
+  say install_step9
   printf '%s http://%s:1999\n' "$(say open)" "$LAN_IP"
   say first
 }
@@ -339,10 +346,14 @@ uninstall_routerdash() {
   fi
 
   say remove3
-  rm -f "$INIT_FILE" "$PID_FILE"
-  rm -rf "$APP_DIR" "$CONF_DIR"
+  killall -q -9 -r 'python3.*routerdash.py' >/dev/null 2>&1 || true
+  rm -f "$PID_FILE"
 
   say remove4
+  rm -f "$INIT_FILE"
+  rm -rf "$APP_DIR" "$CONF_DIR"
+
+  say remove5
   say remove_note
 }
 
