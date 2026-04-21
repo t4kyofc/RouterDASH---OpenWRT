@@ -21,13 +21,11 @@
 
 **RouterDash** — лёгкая веб-панель для OpenWrt, которая показывает устройства в сети, текущую скорость, активные соединения, историю присутствия и Telegram-уведомления.
 
-The project runs directly on the router and uses standard OpenWrt components: `nlbwmon`, `ubus`, DHCP leases, and `ip neigh`.
-
 ## Features / Возможности
 
-- RU/EN interface with a language selector in the bottom-right corner;
-- safe default settings for low-power devices;
-- default local network: `192.168.0.0/24`;
+- RU/EN interface;
+- guided installer with action menu;
+- install, remove, reinstall, and status modes;
 - per-device live download/upload speed;
 - active connection counters and destination details;
 - online / idle / offline detection;
@@ -42,70 +40,29 @@ The project runs directly on the router and uses standard OpenWrt components: `n
 - SSH access to the router
 - internet access for GitHub-based installation
 
-## Quick install / Быстрая установка
-
-Recommended one-liner:
+## One-command launch / Запуск одной командой
 
 ```sh
 wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
 ```
 
-Alternative for systems with `uclient-fetch`:
+После запуска мастер покажет меню:
+
+1. Установить / обновить
+2. Удалить RouterDash
+3. Переустановить RouterDash
+4. Показать статус
+
+Installer flow is structured with numbered stages and clear status output for each action.
+
+## Non-interactive usage / Неинтерактивный режим
 
 ```sh
-uclient-fetch -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
+sh /tmp/routerdash-installer.sh --lang=ru --action=install
+sh /tmp/routerdash-installer.sh --lang=ru --action=uninstall
+sh /tmp/routerdash-installer.sh --lang=en --action=reinstall
+sh /tmp/routerdash-installer.sh --lang=en --action=status
 ```
-
-What the installer does:
-
-1. asks for language first: **Русский** or **English**;
-2. if RouterDash is already installed, offers **install/update**, **remove**, or **reinstall**;
-3. downloads the required files from GitHub;
-4. installs packages and enables the service;
-5. saves the chosen interface language as the default in RouterDash.
-
-> Do not use `sh <(wget -O - ...)` as the primary README command. On many systems stdin gets occupied by the script body, which breaks interactive prompts. The new installer is compatible with direct file execution and is safer for OpenWrt.
-
-## Manual local install / Локальная установка
-
-```sh
-scp install.sh routerdash.py routerdash.init root@192.168.1.1:/tmp/routerdash/
-ssh root@192.168.1.1
-cd /tmp/routerdash
-chmod +x install.sh
-./install.sh
-```
-
-You can also pass arguments:
-
-```sh
-./install.sh install en
-./install.sh uninstall ru
-./install.sh reinstall en
-./install.sh status
-```
-
-## Remove RouterDash / Удаление
-
-Remote uninstall from GitHub installer:
-
-```sh
-wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh uninstall
-```
-
-Or locally:
-
-```sh
-./install.sh uninstall
-```
-
-Removal deletes:
-
-- `/opt/routerdash`
-- `/etc/routerdash`
-- `/etc/init.d/routerdash`
-
-Installed packages such as `python3`, `python3-flask`, and `nlbwmon` are kept.
 
 ## Service management / Управление сервисом
 
@@ -118,12 +75,12 @@ Installed packages such as `python3`, `python3-flask`, and `nlbwmon` are kept.
 
 ## Defaults / Значения по умолчанию
 
+- host: `0.0.0.0`
 - port: `1999`
 - polling interval: `1500 ms`
 - offline grace: `120 sec`
 - activity threshold: `250 Kbit/s`
 - local network: `192.168.0.0/24`
-- interface language: selected during installation
 
 ## License
 

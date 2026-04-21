@@ -20,7 +20,7 @@ for arg in "$@"; do
         LANG_CHOICE="$arg"
       fi
       ;;
-    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS|3)
+    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS|1|2|3|4)
       if [ -z "$ACTION_CHOICE" ]; then
         ACTION_CHOICE="$arg"
       fi
@@ -37,6 +37,10 @@ has_tty() {
   [ -r /dev/tty ] && [ -w /dev/tty ]
 }
 
+normalize_text() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 prompt_value() {
   prompt="$1"
   if has_tty; then
@@ -49,18 +53,18 @@ prompt_value() {
 }
 
 normalize_lang() {
-  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+  case "$(normalize_text "$1")" in
     2|en|eng|english) echo "en" ;;
     *) echo "ru" ;;
   esac
 }
 
 normalize_action() {
-  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+  case "$(normalize_text "$1")" in
     2|remove|delete|uninstall) echo "uninstall" ;;
     3|reinstall) echo "reinstall" ;;
-    status) echo "status" ;;
-    * ) echo "install" ;;
+    4|status) echo "status" ;;
+    *) echo "install" ;;
   esac
 }
 
@@ -95,6 +99,8 @@ export ROUTERDASH_LANG="$LANG_CODE"
 say() {
   key="$1"
   case "$LANG_CODE:$key" in
+    ru:title) echo "RouterDash мастер установки" ;;
+    en:title) echo "RouterDash setup wizard" ;;
     ru:menu_action) echo "Выберите действие" ;;
     en:menu_action) echo "Choose action" ;;
     ru:menu_install) echo "  1) Установить / обновить" ;;
@@ -103,20 +109,22 @@ say() {
     en:menu_remove) echo "  2) Remove RouterDash" ;;
     ru:menu_reinstall) echo "  3) Переустановить RouterDash" ;;
     en:menu_reinstall) echo "  3) Reinstall RouterDash" ;;
+    ru:menu_status) echo "  4) Показать статус" ;;
+    en:menu_status) echo "  4) Show status" ;;
     ru:already_installed) echo "RouterDash уже установлен." ;;
     en:already_installed) echo "RouterDash is already installed." ;;
     ru:default_install) echo "По умолчанию: установка." ;;
     en:default_install) echo "Default action: install." ;;
     ru:not_installed_install) echo "RouterDash не найден. Будет выполнена установка." ;;
     en:not_installed_install) echo "RouterDash not found. Installation will be performed." ;;
-    ru:dl_install) echo "[1/3] Скачивание установщика..." ;;
-    en:dl_install) echo "[1/3] Downloading installer..." ;;
-    ru:dl_files) echo "[2/3] Скачивание файлов RouterDash..." ;;
-    en:dl_files) echo "[2/3] Downloading RouterDash files..." ;;
-    ru:start_local) echo "[3/3] Запуск локального установщика..." ;;
-    en:start_local) echo "[3/3] Starting local installer..." ;;
-    ru:finished) echo "Готово." ;;
-    en:finished) echo "Done." ;;
+    ru:step1) echo "[1/4] Скачивание установщика..." ;;
+    en:step1) echo "[1/4] Downloading local installer..." ;;
+    ru:step2) echo "[2/4] Скачивание файлов RouterDash..." ;;
+    en:step2) echo "[2/4] Downloading RouterDash files..." ;;
+    ru:step3) echo "[3/4] Запуск установщика..." ;;
+    en:step3) echo "[3/4] Running installer..." ;;
+    ru:step4) echo "[4/4] Готово." ;;
+    en:step4) echo "[4/4] Done." ;;
     ru:no_downloader) echo "Не найден загрузчик. Установите uclient-fetch, wget или curl." ;;
     en:no_downloader) echo "No downloader found. Install uclient-fetch, wget, or curl." ;;
     *) echo "$key" ;;
@@ -137,12 +145,14 @@ choose_action() {
 
   if has_tty; then
     echo "==========================================" >/dev/tty
+    say title >/dev/tty
     say already_installed >/dev/tty
     say menu_action >/dev/tty
     say menu_install >/dev/tty
     say menu_remove >/dev/tty
     say menu_reinstall >/dev/tty
-    answer="$(prompt_value 'Choice [1/2/3, default 1]: ')"
+    say menu_status >/dev/tty
+    answer="$(prompt_value 'Choice [1/2/3/4, default 1]: ')"
     normalize_action "$answer"
     return
   fi
@@ -170,18 +180,18 @@ fetch_file() {
   fi
 }
 
-say dl_install
+say step1
 fetch_file "$ROUTERDASH_LOCAL_INSTALL_URL" "$TMP_DIR/install.sh"
 chmod +x "$TMP_DIR/install.sh"
 
-if [ "$ACTION" != "uninstall" ] && [ "$ACTION" != "status" ]; then
-  say dl_files
+if [ "$ACTION" = "install" ] || [ "$ACTION" = "reinstall" ]; then
+  say step2
   fetch_file "$ROUTERDASH_PY_URL" "$TMP_DIR/routerdash.py"
   fetch_file "$ROUTERDASH_INIT_URL" "$TMP_DIR/routerdash.init"
 fi
 
-say start_local
+say step3
 cd "$TMP_DIR"
 ./install.sh --action="$ACTION" --lang="$LANG_CODE"
 
-say finished
+say step4
