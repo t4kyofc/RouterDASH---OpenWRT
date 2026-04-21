@@ -3,68 +3,45 @@
 </p>
 
 <p align="center">
-  <b>Open-source dashboard for OpenWrt</b><br>
-  Мониторинг устройств, скорости, соединений, активности и Telegram-уведомления.<br>
-  Device monitoring, live speed, connections, activity, and Telegram notifications.
-</p>
-
-<p align="center">
-  <img alt="OpenWrt" src="https://img.shields.io/badge/OpenWrt-25.12+-00B5E2?style=for-the-badge">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3-orange?style=for-the-badge">
-  <img alt="Flask" src="https://img.shields.io/badge/Flask-Web_UI-black?style=for-the-badge">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-success?style=for-the-badge">
+  <b>English documentation (main)</b> · <a href="./README_ru.md"><b>Русская документация</b></a>
 </p>
 
 ## RouterDash
 
-**RouterDash** is a lightweight OpenWrt web dashboard that shows devices in the network, live speed, active connections, online history, and Telegram notifications.
+RouterDash is a lightweight OpenWrt dashboard for device visibility, live speed, activity state tracking, and Telegram alerts.
 
-**RouterDash** — лёгкая веб-панель для OpenWrt, которая показывает устройства в сети, текущую скорость, активные соединения, историю присутствия и Telegram-уведомления.
+## Requirements
 
-## Features / Возможности
-
-- RU/EN interface;
-- guided installer with action menu;
-- install, remove, reinstall, and status modes;
-- per-device live download/upload speed;
-- active connection counters and destination details;
-- online / idle / offline detection;
-- history log overlay;
-- Telegram notifications for selected devices;
-- first-run admin setup from the web UI.
-
-## Requirements / Требования
-
-- **OpenWrt 25.12+**
-- **apk** package manager
+- OpenWrt 25.12+
+- `apk` package manager
 - SSH access to the router
-- internet access for GitHub-based installation
+- internet access to GitHub for one-line install
 
-## One-command launch / Запуск одной командой
+## One-line launcher
 
 ```sh
 wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
 ```
 
-После запуска мастер покажет меню:
+This launcher opens an interactive wizard with clear menu options:
 
-1. Установить / обновить
-2. Удалить RouterDash
-3. Переустановить RouterDash
-4. Показать статус
+1. Install / update
+2. Remove RouterDash
+3. Reinstall RouterDash
+4. Show status
 
-Installer flow is structured with numbered stages and clear status output for each action.
+The installer has color highlights and explicit numbered phases.
 
-## Non-interactive usage / Неинтерактивный режим
+## Non-interactive mode
 
 ```sh
-sh /tmp/routerdash-installer.sh --lang=ru --action=install
-sh /tmp/routerdash-installer.sh --lang=ru --action=uninstall
+sh /tmp/routerdash-installer.sh --lang=en --action=install
+sh /tmp/routerdash-installer.sh --lang=en --action=uninstall
 sh /tmp/routerdash-installer.sh --lang=en --action=reinstall
 sh /tmp/routerdash-installer.sh --lang=en --action=status
 ```
 
-## Service management / Управление сервисом
+## Service commands
 
 ```sh
 /etc/init.d/routerdash status
@@ -73,7 +50,7 @@ sh /tmp/routerdash-installer.sh --lang=en --action=status
 /etc/init.d/routerdash start
 ```
 
-## Defaults / Значения по умолчанию
+## Defaults
 
 - host: `0.0.0.0`
 - port: `1999`
