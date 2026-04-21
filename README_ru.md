@@ -1,27 +1,29 @@
 <p align="center">
+  <img src="./docs/preview.png" alt="RouterDash preview" width="100%">
+</p>
+
+<p align="center">
   <a href="./README.md"><b>English documentation</b></a> · <b>Русская документация</b>
 </p>
 
 # RouterDash для OpenWrt
 
-Адаптированный комплект установки для `t4kyofc/RouterDASH---OpenWRT`.
+RouterDash — лёгкая веб-панель для OpenWrt, которая показывает устройства в локальной сети, текущую скорость, активность, активные соединения, историю присутствия и Telegram-уведомления.
 
-## Что изменено
+## Что входит в проект
 
-- GitHub-установщик теперь **сначала скачивает файлы в `/opt/routerdash-installer`**
-- после загрузки сразу выставляет нужные `chmod`
-- затем запускает локальный `install.sh`
-- локальный установщик **сначала спрашивает язык**, а потом показывает меню действий на выбранном языке
-- добавлен локальный файл `blinker.py`, чтобы RouterDash запускался даже там, где в OpenWrt нет пакета `python3-blinker`
+- `routerdash.py` — основное веб-приложение
+- `routerdash.init` — init-скрипт OpenWrt (`/etc/init.d/routerdash`)
+- `blinker.py` — локальный fallback-модуль для сборок OpenWrt без пакета `python3-blinker`
+- `install.sh` — локальный установщик/удаление для уже скачанных файлов
+- `install-github-template.sh` — стартовый GitHub-установщик, который скачивает нужные файлы и запускает `install.sh`
 
-## Файлы в комплекте
+## Требования
 
-- `install-github-template.sh`
-- `install.sh`
-- `blinker.py`
-- `routerdash.init`
-- `README.md`
-- `README_ru.md`
+- OpenWrt 25.12 и новее
+- пакетный менеджер `apk`
+- SSH-доступ к роутеру
+- доступ к GitHub для установки одной командой
 
 ## Быстрая установка с GitHub
 
@@ -29,57 +31,94 @@
 wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
 ```
 
-Что происходит:
+Что происходит дальше:
 
-1. создаётся каталог `/opt/routerdash-installer`
-2. туда скачиваются `install.sh`, `routerdash.py`, `routerdash.init`, `blinker.py`
-3. на `install.sh`, `routerdash.py`, `routerdash.init` ставится `chmod 0755`
-4. запускается локальный `install.sh`
-5. локальный установщик спрашивает язык
-6. после выбора языка показывает меню действий
+1. GitHub-лаунчер спрашивает только язык установки
+2. Скачивает файлы в `/opt/routerdash-installer`
+3. Выставляет для них нужный `chmod`
+4. Запускает локальный установщик уже на выбранном языке
+5. Устанавливает и запускает сервис `routerdash`
 
-## Локальная установка
+GitHub-установщик теперь работает последовательно: сначала выбор языка, затем установка на выбранном языке без повторного вопроса про язык. Установщик совместим с BusyBox-окружением OpenWrt и не требует внешней утилиты `install`.
 
-Если файлы уже лежат в `/opt/routerdash-installer` или другой папке:
+## Локальная установка из уже скачанных файлов
+
+Если файлы проекта уже загружены на роутер или распакованы из архива, запустите:
 
 ```sh
-cd /opt/routerdash-installer
-sh ./install.sh
+cd /path/to/RouterDASH---OpenWRT
+sh ./install.sh --lang=ru --action=install
 ```
 
-## Неинтерактивные варианты
+Обязательные файлы в одной папке:
+
+- `install.sh`
+- `routerdash.py`
+- `routerdash.init`
+
+## Быстрое удаление
+
+Через GitHub-лаунчер:
 
 ```sh
-sh ./install.sh --lang=ru --action=install
+wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh --lang=ru --action=uninstall
+```
+
+Через локальные файлы:
+
+```sh
+cd /path/to/RouterDASH---OpenWRT
 sh ./install.sh --lang=ru --action=uninstall
+```
+
+## Дополнительные действия
+
+```sh
 sh ./install.sh --lang=ru --action=reinstall
 sh ./install.sh --lang=ru --action=status
 ```
 
-## Что копируется при установке
+Интерактивный установщик также поддерживает меню:
+
+1. Установить / обновить
+2. Удалить RouterDash
+3. Переустановить RouterDash
+4. Показать статус
+
+## Пути после установки
+
+После установки используются такие пути:
 
 - приложение: `/opt/routerdash/routerdash.py`
-- локальный fallback для Flask signals: `/opt/routerdash/blinker.py`
 - конфиг: `/etc/routerdash/config.json`
 - сервис: `/etc/init.d/routerdash`
 
-## Пакеты
+## Значения по умолчанию
 
-Установщик ставит:
+- bind host: `0.0.0.0`
+- port: `1999`
+- язык: выбранный при установке
+- polling interval: `1500 ms`
+- offline grace: `120 sec`
+- activity threshold: `250 Kbit/s`
+- local network: `192.168.0.0/24`
 
-- `python3`
-- `python3-flask`
-- `ca-bundle`
-- `nlbwmon`
-- `iwinfo`
+## Управление сервисом
 
-Пакет `python3-blinker` **не требуется**, потому что используется локальный `blinker.py`.
+```sh
+/etc/init.d/routerdash status
+/etc/init.d/routerdash restart
+/etc/init.d/routerdash stop
+/etc/init.d/routerdash start
+logread -e routerdash
+```
 
-## Замена файлов в репозитории
+## Примечания
 
-Замените в репозитории как минимум:
+- Установщик также настраивает и перезапускает `nlbwmon`
+- При первом открытии панели RouterDash предложит создать логин и пароль администратора
+- Панель открывается в браузере по адресу `http://LAN_IP:1999`
 
-- `install-github-template.sh`
-- `install.sh`
-- добавьте новый файл `blinker.py`
-- при желании обновите `README.md` и `README_ru.md`
+## Лицензия
+
+MIT

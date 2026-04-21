@@ -8,6 +8,8 @@ ROUTERDASH_LOCAL_INSTALL_URL="$REPO_BASE/install.sh"
 ROUTERDASH_BLINKER_URL="$REPO_BASE/blinker.py"
 
 STAGE_DIR=/opt/routerdash-installer
+LANG_CHOICE="${ROUTERDASH_LANG:-}"
+ACTION_CHOICE="${ROUTERDASH_ACTION:-install}"
 
 has_tty() {
   [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]
@@ -31,16 +33,88 @@ setup_colors() {
   fi
 }
 
+normalize_text() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+normalize_lang() {
+  case "$(normalize_text "$1")" in
+    2|en|eng|english) echo en ;;
+    *) echo ru ;;
+  esac
+}
+
+normalize_action() {
+  case "$(normalize_text "$1")" in
+    2|remove|delete|uninstall) echo uninstall ;;
+    3|reinstall) echo reinstall ;;
+    4|status) echo status ;;
+    *) echo install ;;
+  esac
+}
+
+prompt_value() {
+  prompt="$1"
+  if has_tty; then
+    printf '%s' "$prompt" >/dev/tty
+    IFS= read -r answer </dev/tty || true
+    printf '%s' "$answer"
+  else
+    printf ''
+  fi
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    ru|RU|en|EN|eng|ENG|english|English|1|2)
+      [ -n "$LANG_CHOICE" ] || LANG_CHOICE="$arg"
+      ;;
+    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS)
+      ACTION_CHOICE="$arg"
+      ;;
+    --lang=*) LANG_CHOICE="${arg#--lang=}" ;;
+    --action=*) ACTION_CHOICE="${arg#--action=}" ;;
+  esac
+done
+
+choose_lang() {
+  if [ -n "$LANG_CHOICE" ]; then
+    normalize_lang "$LANG_CHOICE"
+    return
+  fi
+  if has_tty; then
+    echo "Select installation language / Выберите язык установки" >/dev/tty
+    echo "  1) Русский" >/dev/tty
+    echo "  2) English" >/dev/tty
+    answer="$(prompt_value 'Choice [1/2, default 1]: ')"
+    normalize_lang "$answer"
+    return
+  fi
+  echo ru
+}
+
+LANG_CODE="$(choose_lang)"
+ACTION="$(normalize_action "$ACTION_CHOICE")"
+export ROUTERDASH_LANG="$LANG_CODE"
+export ROUTERDASH_ACTION="$ACTION"
+
 say() {
   key="$1"
-  case "$key" in
-    title) echo "RouterDash GitHub installer" ;;
-    stage) echo "Preparing /opt staging directory" ;;
-    download) echo "Downloading RouterDash files to /opt" ;;
-    chmod) echo "Applying execute permissions" ;;
-    run) echo "Starting local installer" ;;
-    done) echo "Done" ;;
-    no_downloader) echo "No downloader found. Install uclient-fetch, wget or curl." ;;
+  case "${LANG_CODE}:$key" in
+    ru:title) echo "RouterDash GitHub-установщик" ;;
+    en:title) echo "RouterDash GitHub installer" ;;
+    ru:stage) echo "Подготовка каталога /opt для скачивания" ;;
+    en:stage) echo "Preparing /opt staging directory" ;;
+    ru:download) echo "Скачивание файлов RouterDash в /opt" ;;
+    en:download) echo "Downloading RouterDash files to /opt" ;;
+    ru:chmod) echo "Применение прав доступа" ;;
+    en:chmod) echo "Applying file permissions" ;;
+    ru:run) echo "Запуск локального установщика" ;;
+    en:run) echo "Starting local installer" ;;
+    ru:no_downloader) echo "Не найден загрузчик. Установите uclient-fetch, wget или curl." ;;
+    en:no_downloader) echo "No downloader found. Install uclient-fetch, wget or curl." ;;
+    ru:done) echo "Готово" ;;
+    en:done) echo "Done" ;;
     *) echo "$key" ;;
   esac
 }
@@ -86,6 +160,7 @@ setup_colors
 print_banner
 
 step 1 4 "$(say stage)"
+rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
 step 2 4 "$(say download)"
@@ -100,4 +175,4 @@ chmod 0644 "$STAGE_DIR/blinker.py"
 
 step 4 4 "$(say run)"
 cd "$STAGE_DIR"
-exec ./install.sh "$@"
+exec ./install.sh --lang="$LANG_CODE" --action="$ACTION"

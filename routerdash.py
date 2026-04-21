@@ -57,6 +57,7 @@ DEFAULT_SETTINGS = {
     "telegram_chat_id": "",
     "telegram_limit_to_selected_devices": False,
     "telegram_selected_devices": [],
+    "telegram_selection_initialized": False,
 }
 
 DEFAULT_CONFIG = {
@@ -3279,6 +3280,7 @@ def index():
     show_ipv6 = bool(settings.get("track_ipv6", True))
     selected_macs = {normalize_mac(v) for v in settings.get("telegram_selected_devices", []) if v}
     selected_only = bool(settings.get("telegram_limit_to_selected_devices"))
+    selection_initialized = bool(settings.get("telegram_selection_initialized", False))
     devices = []
     telegram_devices = []
     for d in payload["devices"]:
@@ -3312,7 +3314,7 @@ def index():
             "mac": d.get("mac", ""),
             "display_name": d.get("display_name") or d.get("hostname") or d.get("mac"),
             "status_h": badge_text,
-            "selected": (d.get("mac", "") in selected_macs) if selected_only else True,
+            "selected": (d.get("mac", "") in selected_macs) if selection_initialized else True,
         })
     return render_page(
         APP_NAME,
@@ -3421,6 +3423,7 @@ def save_settings():
             "notify_inactive": parse_bool_from_form("notify_inactive"),
             "telegram_limit_to_selected_devices": parse_bool_from_form("telegram_limit_to_selected_devices"),
             "telegram_selected_devices": selected_devices,
+            "telegram_selection_initialized": True,
         }
         store.update_settings(updated)
         sync_state_device_ips(updated)

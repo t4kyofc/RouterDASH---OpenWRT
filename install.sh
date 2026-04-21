@@ -280,6 +280,7 @@ defaults = {
         'telegram_chat_id': '',
         'telegram_limit_to_selected_devices': False,
         'telegram_selected_devices': [],
+        'telegram_selection_initialized': False,
     },
 }
 
