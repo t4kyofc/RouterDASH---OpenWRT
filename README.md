@@ -3,127 +3,119 @@
 </p>
 
 <p align="center">
-  <b>Open-source dashboard for OpenWrt</b><br>
-  Мониторинг устройств, скорости, соединений, активности и Telegram-уведомления.<br>
-  Device monitoring, live speed, connections, activity, and Telegram notifications.
+  <b>English documentation</b> · <a href="./README_ru.md"><b>Русская документация</b></a>
 </p>
 
-<p align="center">
-  <img alt="OpenWrt" src="https://img.shields.io/badge/OpenWrt-25.12+-00B5E2?style=for-the-badge">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3-orange?style=for-the-badge">
-  <img alt="Flask" src="https://img.shields.io/badge/Flask-Web_UI-black?style=for-the-badge">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-success?style=for-the-badge">
-</p>
+# RouterDash for OpenWrt
 
-## RouterDash
+RouterDash is a lightweight web dashboard for OpenWrt that shows devices on the local network, current speed, activity state, active connections, presence history, and Telegram alerts.
 
-**RouterDash** is a lightweight OpenWrt web dashboard that shows devices in the network, live speed, active connections, online history, and Telegram notifications.
+## What the project includes
 
-**RouterDash** — лёгкая веб-панель для OpenWrt, которая показывает устройства в сети, текущую скорость, активные соединения, историю присутствия и Telegram-уведомления.
+- `routerdash.py` — main web application
+- `routerdash.init` — OpenWrt init script (`/etc/init.d/routerdash`)
+- `install.sh` — local installer/remover for files already downloaded
+- `install-github-template.sh` — GitHub bootstrap launcher that downloads the required files and runs `install.sh`
 
-The project runs directly on the router and uses standard OpenWrt components: `nlbwmon`, `ubus`, DHCP leases, and `ip neigh`.
+## Requirements
 
-## Features / Возможности
-
-- RU/EN interface with a language selector in the bottom-right corner;
-- safe default settings for low-power devices;
-- default local network: `192.168.0.0/24`;
-- per-device live download/upload speed;
-- active connection counters and destination details;
-- online / idle / offline detection;
-- history log overlay;
-- Telegram notifications for selected devices;
-- first-run admin setup from the web UI.
-
-## Requirements / Требования
-
-- **OpenWrt 25.12+**
-- **apk** package manager
+- OpenWrt 25.12 or newer
+- `apk` package manager
 - SSH access to the router
-- internet access for GitHub-based installation
+- Internet access to GitHub for the bootstrap installer
 
-## Quick install / Быстрая установка
-
-Recommended one-liner:
+## Quick install from GitHub
 
 ```sh
 wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
 ```
 
-Alternative for systems with `uclient-fetch`:
+What happens next:
+
+1. The launcher asks for the installation language
+2. Downloads `install.sh`, `routerdash.py`, and `routerdash.init`
+3. Runs the local installer
+4. Enables and starts the `routerdash` service
+
+The installer is now compatible with BusyBox-based OpenWrt systems and does not require the external `install` utility.
+
+## Local install from downloaded files
+
+If you already downloaded or unpacked the project files on the router, run:
 
 ```sh
-uclient-fetch -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
+cd /path/to/RouterDASH---OpenWRT
+sh ./install.sh --lang=en --action=install
 ```
 
-What the installer does:
+Required files in the same directory:
 
-1. asks for language first: **Русский** or **English**;
-2. if RouterDash is already installed, offers **install/update**, **remove**, or **reinstall**;
-3. downloads the required files from GitHub;
-4. installs packages and enables the service;
-5. saves the chosen interface language as the default in RouterDash.
+- `install.sh`
+- `routerdash.py`
+- `routerdash.init`
 
-> Do not use `sh <(wget -O - ...)` as the primary README command. On many systems stdin gets occupied by the script body, which breaks interactive prompts. The new installer is compatible with direct file execution and is safer for OpenWrt.
+## Quick remove
 
-## Manual local install / Локальная установка
+Using the GitHub launcher:
 
 ```sh
-scp install.sh routerdash.py routerdash.init root@192.168.1.1:/tmp/routerdash/
-ssh root@192.168.1.1
-cd /tmp/routerdash
-chmod +x install.sh
-./install.sh
+wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh --lang=en --action=uninstall
 ```
 
-You can also pass arguments:
+Using local files:
 
 ```sh
-./install.sh install en
-./install.sh uninstall ru
-./install.sh reinstall en
-./install.sh status
+cd /path/to/RouterDASH---OpenWRT
+sh ./install.sh --lang=en --action=uninstall
 ```
 
-## Remove RouterDash / Удаление
-
-Remote uninstall from GitHub installer:
+## Other actions
 
 ```sh
-wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh uninstall
+sh ./install.sh --lang=en --action=reinstall
+sh ./install.sh --lang=en --action=status
 ```
 
-Or locally:
+The interactive launcher also supports these menu actions:
 
-```sh
-./install.sh uninstall
-```
+1. Install / update
+2. Remove RouterDash
+3. Reinstall RouterDash
+4. Show status
 
-Removal deletes:
+## Installed paths
 
-- `/opt/routerdash`
-- `/etc/routerdash`
-- `/etc/init.d/routerdash`
+After installation the project uses these paths:
 
-Installed packages such as `python3`, `python3-flask`, and `nlbwmon` are kept.
+- application: `/opt/routerdash/routerdash.py`
+- config: `/etc/routerdash/config.json`
+- service: `/etc/init.d/routerdash`
 
-## Service management / Управление сервисом
+## Default settings
+
+- bind host: `0.0.0.0`
+- port: `1999`
+- language: selected during install
+- polling interval: `1500 ms`
+- offline grace: `120 sec`
+- activity threshold: `250 Kbit/s`
+- local network: `192.168.0.0/24`
+
+## Service management
 
 ```sh
 /etc/init.d/routerdash status
 /etc/init.d/routerdash restart
 /etc/init.d/routerdash stop
 /etc/init.d/routerdash start
+logread -e routerdash
 ```
 
-## Defaults / Значения по умолчанию
+## Notes
 
-- port: `1999`
-- polling interval: `1500 ms`
-- offline grace: `120 sec`
-- activity threshold: `250 Kbit/s`
-- local network: `192.168.0.0/24`
-- interface language: selected during installation
+- The installer also configures and restarts `nlbwmon`
+- On first web login RouterDash asks you to create the admin username and password
+- The panel is opened in a browser at `http://LAN_IP:1999`
 
 ## License
 
