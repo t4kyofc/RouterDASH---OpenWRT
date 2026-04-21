@@ -85,6 +85,8 @@ say() {
     en:title) echo "RouterDash local installer" ;;
     ru:need_apk) echo "Требуется OpenWrt 25.12+ с apk." ;;
     en:need_apk) echo "OpenWrt 25.12+ with apk is required." ;;
+    ru:menu_lang) echo "Select installation language / Выберите язык установки" ;;
+    en:menu_lang) echo "Select installation language / Choose installation language" ;;
     ru:menu_action) echo "Выберите действие:" ;;
     en:menu_action) echo "Choose action:" ;;
     ru:menu_install) echo "  1) Установить / обновить" ;;
@@ -95,8 +97,6 @@ say() {
     en:menu_reinstall) echo "  3) Reinstall RouterDash" ;;
     ru:menu_status) echo "  4) Показать статус" ;;
     en:menu_status) echo "  4) Show status" ;;
-    ru:not_installed) echo "RouterDash не найден. Запускаю установку." ;;
-    en:not_installed) echo "RouterDash not found. Running install." ;;
     ru:step_pkg) echo "Установка пакетов" ;;
     en:step_pkg) echo "Installing packages" ;;
     ru:step_dirs) echo "Создание каталогов" ;;
@@ -141,6 +141,10 @@ say() {
     en:missing_py) echo "routerdash.py was not found next to install.sh" ;;
     ru:missing_init) echo "Не найден routerdash.init рядом с install.sh" ;;
     en:missing_init) echo "routerdash.init was not found next to install.sh" ;;
+    ru:missing_blinker) echo "Не найден blinker.py рядом с install.sh" ;;
+    en:missing_blinker) echo "blinker.py was not found next to install.sh" ;;
+    ru:source_dir) echo "Источник файлов" ;;
+    en:source_dir) echo "Source directory" ;;
     *) echo "$key" ;;
   esac
 }
@@ -200,11 +204,6 @@ choose_action() {
     normalize_action "$ACTION_CHOICE"
     return
   fi
-  if ! is_installed; then
-    say not_installed >&2
-    echo install
-    return
-  fi
   if has_tty; then
     print_banner >/dev/tty
     say menu_action >/dev/tty
@@ -233,12 +232,10 @@ copy_with_mode() {
   mode="$1"
   src="$2"
   dst="$3"
-
   [ -f "$src" ] || {
     err "Source file not found: $src"
     exit 1
   }
-
   dst_dir=$(dirname -- "$dst")
   mkdir -p "$dst_dir"
   cp "$src" "$dst"
@@ -302,21 +299,9 @@ config.setdefault('secret_key', defaults['secret_key'])
 config.setdefault('admin', deepcopy(defaults['admin']))
 settings = config.setdefault('settings', deepcopy(defaults['settings']))
 
-legacy_defaults = {
-    'poll_interval_ms': {100, 250},
-    'offline_grace_sec': {90},
-    'activity_total_kbps': {500},
-    'local_network_cidr': {'172.20.0.0/16', ''},
-    'bind_host': {'127.0.0.1', 'localhost', ''},
-}
-
 for key, value in defaults['settings'].items():
     if key not in settings:
         settings[key] = deepcopy(value)
-
-for key, old_values in legacy_defaults.items():
-    if settings.get(key) in old_values:
-        settings[key] = deepcopy(defaults['settings'][key])
 
 settings['language'] = lang
 
@@ -347,7 +332,7 @@ start_service_with_retry() {
   rm -f "$PID_FILE"
   /etc/init.d/routerdash start >/dev/null 2>&1 || true
   i=0
-  while [ "$i" -lt 5 ]; do
+  while [ "$i" -lt 6 ]; do
     if service_running; then
       return 0
     fi
@@ -371,7 +356,9 @@ install_routerdash() {
   step 3 9 "$(say step_copy)"
   [ -f "$SCRIPT_DIR/routerdash.py" ] || { err "$(say missing_py)"; exit 1; }
   [ -f "$SCRIPT_DIR/routerdash.init" ] || { err "$(say missing_init)"; exit 1; }
+  [ -f "$SCRIPT_DIR/blinker.py" ] || { err "$(say missing_blinker)"; exit 1; }
   copy_with_mode 0755 "$SCRIPT_DIR/routerdash.py" "$APP_DIR/routerdash.py"
+  copy_with_mode 0644 "$SCRIPT_DIR/blinker.py" "$APP_DIR/blinker.py"
   copy_with_mode 0755 "$SCRIPT_DIR/routerdash.init" "$INIT_FILE"
 
   step 4 9 "$(say step_cfg)"
@@ -385,7 +372,7 @@ install_routerdash() {
 
   step 7 9 "$(say step_start)"
   if ! start_service_with_retry; then
-    err "$(say service_fail)"
+    warn "$(say service_fail)"
   fi
 
   step 8 9 "$(say step_check)"
@@ -432,6 +419,7 @@ uninstall_routerdash() {
 show_status() {
   print_banner
   printf '%s\n' "$(say status_title)"
+  printf '%s: %s\n' "$(say source_dir)" "$SCRIPT_DIR"
   if [ -x "$INIT_FILE" ]; then
     /etc/init.d/routerdash status || true
     if service_running; then
