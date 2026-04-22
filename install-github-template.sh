@@ -2,35 +2,24 @@
 set -eu
 
 REPO_BASE="https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main"
-ROUTERDASH_PY_URL="$REPO_BASE/routerdash.py"
-ROUTERDASH_INIT_URL="$REPO_BASE/routerdash.init"
-ROUTERDASH_LOCAL_INSTALL_URL="$REPO_BASE/install.sh"
-ROUTERDASH_BLINKER_URL="$REPO_BASE/blinker.py"
+FILES="install.sh routerdash.py routerdash.init blinker.py routerdash_patch.py README.md README_ru.md"
+STAGE_DIR="/opt/routerdash-installer"
 
-STAGE_DIR=/opt/routerdash-installer
-
-LANG_CHOICE="${ROUTERDASH_LANG:-}"
-ACTION_CHOICE="${ROUTERDASH_ACTION:-}"
+LANG_CHOICE=""
+ACTION_CHOICE=""
 
 has_tty() {
   [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]
 }
 
-setup_colors() {
+prompt_value() {
+  prompt="$1"
   if has_tty; then
-    C_RESET="$(printf '\033[0m')"
-    C_RED="$(printf '\033[31m')"
-    C_GREEN="$(printf '\033[32m')"
-    C_BLUE="$(printf '\033[34m')"
-    C_CYAN="$(printf '\033[36m')"
-    C_BOLD="$(printf '\033[1m')"
+    printf '%s' "$prompt" >/dev/tty
+    IFS= read -r answer </dev/tty || true
+    printf '%s' "$answer"
   else
-    C_RESET=''
-    C_RED=''
-    C_GREEN=''
-    C_BLUE=''
-    C_CYAN=''
-    C_BOLD=''
+    printf ''
   fi
 }
 
@@ -48,93 +37,46 @@ normalize_lang() {
 normalize_action() {
   case "$(normalize_text "$1")" in
     2|remove|delete|uninstall) echo uninstall ;;
-    3|reinstall) echo reinstall ;;
-    4|status) echo status ;;
     *) echo install ;;
   esac
 }
 
-prompt_value() {
-  prompt="$1"
-  if has_tty; then
-    printf '%s' "$prompt" >/dev/tty
-    IFS= read -r answer </dev/tty || true
-    printf '%s' "$answer"
-  else
-    printf ''
-  fi
-}
-
-for arg in "$@"; do
-  case "$arg" in
-    ru|RU|en|EN|eng|ENG|english|English|1|2)
-      [ -n "$LANG_CHOICE" ] || LANG_CHOICE="$arg"
-      ;;
-    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS)
-      [ -n "$ACTION_CHOICE" ] || ACTION_CHOICE="$arg"
-      ;;
-    --lang=*) LANG_CHOICE="${arg#--lang=}" ;;
-    --action=*) ACTION_CHOICE="${arg#--action=}" ;;
-  esac
-done
-
-choose_lang() {
-  if [ -n "$LANG_CHOICE" ]; then
-    normalize_lang "$LANG_CHOICE"
-    return
-  fi
-  if has_tty; then
-    echo "Select installation language / Выберите язык установки" >/dev/tty
-    echo "  1) Русский" >/dev/tty
-    echo "  2) English" >/dev/tty
-    answer="$(prompt_value 'Choice [1/2, default 1]: ')"
-    normalize_lang "$answer"
-    return
-  fi
-  echo ru
-}
-
-LANG_CODE="$(choose_lang)"
-export ROUTERDASH_LANG="$LANG_CODE"
-ACTION="$(normalize_action "${ACTION_CHOICE:-install}")"
-export ROUTERDASH_ACTION="$ACTION"
-
 say() {
   key="$1"
-  case "${LANG_CODE:-ru}:$key" in
-    ru:title) echo "RouterDash GitHub-установщик" ;;
+  case "${LANG_CHOICE:-ru}:$key" in
+    ru:title) echo "RouterDash GitHub установщик" ;;
     en:title) echo "RouterDash GitHub installer" ;;
-    ru:stage) echo "Подготовка каталога загрузки в /opt" ;;
-    en:stage) echo "Preparing download directory in /opt" ;;
-    ru:download) echo "Скачивание файлов RouterDash в /opt" ;;
-    en:download) echo "Downloading RouterDash files to /opt" ;;
-    ru:chmod) echo "Выставление прав доступа" ;;
-    en:chmod) echo "Applying file permissions" ;;
-    ru:run) echo "Запуск локального установщика" ;;
-    en:run) echo "Starting local installer" ;;
-    ru:done) echo "Готово" ;;
-    en:done) echo "Done" ;;
+    ru:lang_title) echo "Выберите язык установки" ;;
+    en:lang_title) echo "Select installation language" ;;
+    ru:lang_ru) echo "  1) Русский" ;;
+    en:lang_ru) echo "  1) Russian" ;;
+    ru:lang_en) echo "  2) English" ;;
+    en:lang_en) echo "  2) English" ;;
+    ru:action_title) echo "Выберите действие" ;;
+    en:action_title) echo "Choose action" ;;
+    ru:action_install) echo "  1) Установить / обновить" ;;
+    en:action_install) echo "  1) Install / update" ;;
+    ru:action_remove) echo "  2) Удалить RouterDash" ;;
+    en:action_remove) echo "  2) Remove RouterDash" ;;
+    ru:step_stage) echo "Подготовка каталога /opt/routerdash-installer" ;;
+    en:step_stage) echo "Preparing /opt/routerdash-installer directory" ;;
+    ru:step_download) echo "Скачивание файлов проекта в /opt/routerdash-installer" ;;
+    en:step_download) echo "Downloading project files into /opt/routerdash-installer" ;;
+    ru:step_chmod) echo "Применение прав доступа" ;;
+    en:step_chmod) echo "Applying file permissions" ;;
+    ru:step_run) echo "Запуск локального установщика" ;;
+    en:step_run) echo "Running local installer" ;;
     ru:no_downloader) echo "Не найден загрузчик. Установите uclient-fetch, wget или curl." ;;
     en:no_downloader) echo "No downloader found. Install uclient-fetch, wget or curl." ;;
     *) echo "$key" ;;
   esac
 }
 
-print_banner() {
-  printf '%s%s==========================================%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET"
-  printf '%s%s%s\n' "$C_CYAN" "$(say title)" "$C_RESET"
-  printf '%s%s==========================================%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET"
-}
-
 step() {
   idx="$1"
   total="$2"
   msg="$3"
-  printf '%s[%s/%s]%s %s\n' "$C_BLUE" "$idx" "$total" "$C_RESET" "$msg"
-}
-
-err() {
-  printf '%s%s%s\n' "$C_RED" "$1" "$C_RESET" >&2
+  printf '[%s/%s] %s\n' "$idx" "$total" "$msg"
 }
 
 fetch_file() {
@@ -147,32 +89,65 @@ fetch_file() {
   elif command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$dst"
   else
-    err "$(say no_downloader)"
+    echo "$(say no_downloader)" >&2
     exit 1
   fi
-
   if [ ! -s "$dst" ]; then
-    err "Downloaded file is empty: $dst"
+    echo "Downloaded file is empty: $dst" >&2
     exit 1
   fi
 }
 
-setup_colors
-print_banner
+choose_lang() {
+  if [ -n "$LANG_CHOICE" ]; then
+    return
+  fi
+  if has_tty; then
+    echo "$(say lang_title)" >/dev/tty
+    echo "$(say lang_ru)" >/dev/tty
+    echo "$(say lang_en)" >/dev/tty
+    LANG_CHOICE="$(normalize_lang "$(prompt_value 'Choice [1/2, default 1]: ')")"
+  else
+    LANG_CHOICE=ru
+  fi
+}
 
-step 1 4 "$(say stage)"
+choose_action() {
+  if [ -n "$ACTION_CHOICE" ]; then
+    return
+  fi
+  if has_tty; then
+    echo "$(say action_title)" >/dev/tty
+    echo "$(say action_install)" >/dev/tty
+    echo "$(say action_remove)" >/dev/tty
+    ACTION_CHOICE="$(normalize_action "$(prompt_value 'Choice [1/2, default 1]: ')")"
+  else
+    ACTION_CHOICE=install
+  fi
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --lang=*) LANG_CHOICE="$(normalize_lang "${arg#--lang=}")" ;;
+    --action=*) ACTION_CHOICE="$(normalize_action "${arg#--action=}")" ;;
+  esac
+done
+
+choose_lang
+choose_action
+
+step 1 4 "$(say step_stage)"
 mkdir -p "$STAGE_DIR"
 
-step 2 4 "$(say download)"
-fetch_file "$ROUTERDASH_LOCAL_INSTALL_URL" "$STAGE_DIR/install.sh"
-fetch_file "$ROUTERDASH_PY_URL" "$STAGE_DIR/routerdash.py"
-fetch_file "$ROUTERDASH_INIT_URL" "$STAGE_DIR/routerdash.init"
-fetch_file "$ROUTERDASH_BLINKER_URL" "$STAGE_DIR/blinker.py"
+step 2 4 "$(say step_download)"
+for file in $FILES; do
+  fetch_file "$REPO_BASE/$file" "$STAGE_DIR/$file"
+done
 
-step 3 4 "$(say chmod)"
+step 3 4 "$(say step_chmod)"
 chmod 0755 "$STAGE_DIR/install.sh" "$STAGE_DIR/routerdash.py" "$STAGE_DIR/routerdash.init"
-chmod 0644 "$STAGE_DIR/blinker.py"
+chmod 0644 "$STAGE_DIR/blinker.py" "$STAGE_DIR/routerdash_patch.py" "$STAGE_DIR/README.md" "$STAGE_DIR/README_ru.md"
 
-step 4 4 "$(say run)"
+step 4 4 "$(say step_run)"
 cd "$STAGE_DIR"
-exec ./install.sh --lang="$LANG_CODE" --action="$ACTION"
+exec ./install.sh --lang="$LANG_CHOICE" --action="$ACTION_CHOICE"

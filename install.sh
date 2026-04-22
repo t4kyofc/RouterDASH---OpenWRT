@@ -7,35 +7,11 @@ INIT_FILE=/etc/init.d/routerdash
 PID_FILE=/var/run/routerdash.pid
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
-LANG_CHOICE="${ROUTERDASH_LANG:-}"
-ACTION_CHOICE="${ROUTERDASH_ACTION:-}"
+LANG_CHOICE=""
+ACTION_CHOICE=""
 
 has_tty() {
   [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]
-}
-
-setup_colors() {
-  if has_tty; then
-    C_RESET="$(printf '\033[0m')"
-    C_RED="$(printf '\033[31m')"
-    C_GREEN="$(printf '\033[32m')"
-    C_YELLOW="$(printf '\033[33m')"
-    C_BLUE="$(printf '\033[34m')"
-    C_CYAN="$(printf '\033[36m')"
-    C_BOLD="$(printf '\033[1m')"
-  else
-    C_RESET=''
-    C_RED=''
-    C_GREEN=''
-    C_YELLOW=''
-    C_BLUE=''
-    C_CYAN=''
-    C_BOLD=''
-  fi
-}
-
-normalize_text() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 prompt_value() {
@@ -49,6 +25,10 @@ prompt_value() {
   fi
 }
 
+normalize_text() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 normalize_lang() {
   case "$(normalize_text "$1")" in
     2|en|eng|english) echo en ;;
@@ -59,48 +39,50 @@ normalize_lang() {
 normalize_action() {
   case "$(normalize_text "$1")" in
     2|remove|delete|uninstall) echo uninstall ;;
-    3|reinstall) echo reinstall ;;
-    4|status) echo status ;;
     *) echo install ;;
   esac
 }
 
 for arg in "$@"; do
   case "$arg" in
-    ru|RU|en|EN|eng|ENG|english|English|1|2)
-      [ -n "$LANG_CHOICE" ] || LANG_CHOICE="$arg"
-      ;;
-    install|INSTALL|update|UPDATE|remove|REMOVE|delete|DELETE|uninstall|UNINSTALL|reinstall|REINSTALL|status|STATUS|1|2|3|4)
-      [ -n "$ACTION_CHOICE" ] || ACTION_CHOICE="$arg"
-      ;;
-    --lang=*) LANG_CHOICE="${arg#--lang=}" ;;
-    --action=*) ACTION_CHOICE="${arg#--action=}" ;;
+    --lang=*) LANG_CHOICE="$(normalize_lang "${arg#--lang=}")" ;;
+    --action=*) ACTION_CHOICE="$(normalize_action "${arg#--action=}")" ;;
   esac
 done
 
+choose_lang() {
+  if [ -n "$LANG_CHOICE" ]; then
+    return
+  fi
+  if has_tty; then
+    echo "Select installation language / Выберите язык установки" >/dev/tty
+    echo "  1) Русский" >/dev/tty
+    echo "  2) English" >/dev/tty
+    LANG_CHOICE="$(normalize_lang "$(prompt_value 'Choice [1/2, default 1]: ')")"
+  else
+    LANG_CHOICE=ru
+  fi
+}
+
 say() {
   key="$1"
-  case "${LANG_CODE:-ru}:$key" in
+  case "${LANG_CHOICE:-ru}:$key" in
     ru:title) echo "RouterDash локальный установщик" ;;
     en:title) echo "RouterDash local installer" ;;
-    ru:need_apk) echo "Требуется OpenWrt 25.12+ с apk." ;;
-    en:need_apk) echo "OpenWrt 25.12+ with apk is required." ;;
-    ru:menu_lang) echo "Select installation language / Выберите язык установки" ;;
-    en:menu_lang) echo "Select installation language / Choose installation language" ;;
-    ru:menu_action) echo "Выберите действие:" ;;
-    en:menu_action) echo "Choose action:" ;;
+    ru:menu_action) echo "Выберите действие" ;;
+    en:menu_action) echo "Choose action" ;;
     ru:menu_install) echo "  1) Установить / обновить" ;;
     en:menu_install) echo "  1) Install / update" ;;
     ru:menu_remove) echo "  2) Удалить RouterDash" ;;
     en:menu_remove) echo "  2) Remove RouterDash" ;;
-    ru:menu_reinstall) echo "  3) Переустановить RouterDash" ;;
-    en:menu_reinstall) echo "  3) Reinstall RouterDash" ;;
-    ru:menu_status) echo "  4) Показать статус" ;;
-    en:menu_status) echo "  4) Show status" ;;
+    ru:need_apk) echo "Требуется OpenWrt 25.12+ с apk." ;;
+    en:need_apk) echo "OpenWrt 25.12+ with apk is required." ;;
     ru:step_pkg) echo "Установка пакетов" ;;
     en:step_pkg) echo "Installing packages" ;;
     ru:step_dirs) echo "Создание каталогов" ;;
     en:step_dirs) echo "Creating directories" ;;
+    ru:step_patch) echo "Применение патча RouterDash" ;;
+    en:step_patch) echo "Applying RouterDash patch" ;;
     ru:step_copy) echo "Копирование файлов" ;;
     en:step_copy) echo "Copying files" ;;
     ru:step_cfg) echo "Подготовка конфигурации" ;;
@@ -127,8 +109,6 @@ say() {
     en:step_removed) echo "RouterDash removed" ;;
     ru:remove_missing) echo "RouterDash не найден. Удалять нечего." ;;
     en:remove_missing) echo "RouterDash not found. Nothing to remove." ;;
-    ru:status_title) echo "Текущий статус RouterDash:" ;;
-    en:status_title) echo "Current RouterDash status:" ;;
     ru:service_ok) echo "Сервис запущен" ;;
     en:service_ok) echo "Service is running" ;;
     ru:service_fail) echo "Сервис не запущен. Проверьте логи: logread -e routerdash" ;;
@@ -143,87 +123,40 @@ say() {
     en:missing_init) echo "routerdash.init was not found next to install.sh" ;;
     ru:missing_blinker) echo "Не найден blinker.py рядом с install.sh" ;;
     en:missing_blinker) echo "blinker.py was not found next to install.sh" ;;
-    ru:source_dir) echo "Источник файлов" ;;
-    en:source_dir) echo "Source directory" ;;
+    ru:missing_patch) echo "Не найден routerdash_patch.py рядом с install.sh" ;;
+    en:missing_patch) echo "routerdash_patch.py was not found next to install.sh" ;;
     *) echo "$key" ;;
   esac
 }
 
-print_banner() {
-  printf '%s%s==========================================%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET"
-  printf '%s%s%s\n' "$C_CYAN" "$(say title)" "$C_RESET"
-  printf '%s%s==========================================%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET"
+choose_lang
+
+choose_action() {
+  if [ -n "$ACTION_CHOICE" ]; then
+    return
+  fi
+  if has_tty; then
+    echo "$(say menu_action)" >/dev/tty
+    echo "$(say menu_install)" >/dev/tty
+    echo "$(say menu_remove)" >/dev/tty
+    ACTION_CHOICE="$(normalize_action "$(prompt_value 'Choice [1/2, default 1]: ')")"
+  else
+    ACTION_CHOICE=install
+  fi
 }
+
+choose_action
 
 step() {
   idx="$1"
   total="$2"
   msg="$3"
-  printf '%s[%s/%s]%s %s\n' "$C_BLUE" "$idx" "$total" "$C_RESET" "$msg"
+  printf '[%s/%s] %s\n' "$idx" "$total" "$msg"
 }
-
-ok() {
-  printf '%s%s%s\n' "$C_GREEN" "$1" "$C_RESET"
-}
-
-warn() {
-  printf '%s%s%s\n' "$C_YELLOW" "$1" "$C_RESET"
-}
-
-err() {
-  printf '%s%s%s\n' "$C_RED" "$1" "$C_RESET" >&2
-}
-
-setup_colors
-
-is_installed() {
-  [ -f "$APP_DIR/routerdash.py" ] || [ -x "$INIT_FILE" ] || [ -d "$CONF_DIR" ]
-}
-
-choose_lang() {
-  if [ -n "$LANG_CHOICE" ]; then
-    normalize_lang "$LANG_CHOICE"
-    return
-  fi
-  if has_tty; then
-    echo "Select installation language / Выберите язык установки" >/dev/tty
-    echo "  1) Русский" >/dev/tty
-    echo "  2) English" >/dev/tty
-    answer="$(prompt_value 'Choice [1/2, default 1]: ')"
-    normalize_lang "$answer"
-    return
-  fi
-  echo ru
-}
-
-LANG_CODE="$(choose_lang)"
-export ROUTERDASH_LANG="$LANG_CODE"
-
-choose_action() {
-  if [ -n "$ACTION_CHOICE" ]; then
-    normalize_action "$ACTION_CHOICE"
-    return
-  fi
-  if has_tty; then
-    print_banner >/dev/tty
-    say menu_action >/dev/tty
-    say menu_install >/dev/tty
-    say menu_remove >/dev/tty
-    say menu_reinstall >/dev/tty
-    say menu_status >/dev/tty
-    answer="$(prompt_value 'Choice [1/2/3/4, default 1]: ')"
-    normalize_action "$answer"
-    return
-  fi
-  echo install
-}
-
-ACTION="$(choose_action)"
-export ROUTERDASH_ACTION="$ACTION"
 
 ensure_apk() {
   if ! command -v apk >/dev/null 2>&1; then
-    err "$(say need_apk)"
+    echo "$(say need_apk)" >&2
     exit 1
   fi
 }
@@ -233,109 +166,17 @@ copy_with_mode() {
   src="$2"
   dst="$3"
   [ -f "$src" ] || {
-    err "Source file not found: $src"
+    echo "Source file not found: $src" >&2
     exit 1
   }
-  dst_dir=$(dirname -- "$dst")
-  mkdir -p "$dst_dir"
+  mkdir -p "$(dirname -- "$dst")"
   cp "$src" "$dst"
   chmod "$mode" "$dst"
 }
 
-detect_local_network_cidr() {
-  python3 - <<'PY'
-import ipaddress
-import subprocess
-
-def run_cmd(args):
-    try:
-        proc = subprocess.run(args, capture_output=True, text=True, timeout=3)
-        return proc.returncode, (proc.stdout or '').strip(), (proc.stderr or '').strip()
-    except Exception:
-        return 1, '', ''
-
-def first_ipv4_token(value: str) -> str:
-    for token in str(value or '').replace(',', ' ').split():
-        base = token.split('/', 1)[0]
-        try:
-            if ipaddress.ip_address(base).version == 4:
-                return token
-        except Exception:
-            continue
-    return ''
-
-def detect_from_ip_mask(ip_value: str, mask_value: str = ''):
-    token = first_ipv4_token(ip_value)
-    if not token:
-        return None
-    try:
-        if '/' in token:
-            return str(ipaddress.ip_interface(token).network)
-        mask_token = first_ipv4_token(mask_value)
-        if mask_token:
-            return str(ipaddress.ip_network(f"{token}/{mask_token}", strict=False))
-        return str(ipaddress.ip_network(f"{token}/24", strict=False))
-    except Exception:
-        return None
-
-fallback = '192.168.0.0/24'
-ipaddr = ''
-netmask = ''
-for cmd in (["uci", "-q", "get", "network.lan.ipaddr"], ["uci", "-q", "get", "network.lan.netmask"]):
-    rc, out, _ = run_cmd(cmd)
-    if rc == 0 and out:
-        if cmd[-1].endswith('ipaddr'):
-            ipaddr = out
-        else:
-            netmask = out
-
-detected = detect_from_ip_mask(ipaddr, netmask)
-if not detected:
-    lan_device = ''
-    for cmd in (["uci", "-q", "get", "network.lan.device"], ["uci", "-q", "get", "network.lan.ifname"]):
-        rc, out, _ = run_cmd(cmd)
-        if rc == 0 and out:
-            lan_device = out.split()[0]
-            break
-    for dev in [x for x in [lan_device, 'br-lan', 'lan'] if x]:
-        rc, out, _ = run_cmd(["ip", "-4", "addr", "show", "dev", dev])
-        if rc != 0 or not out:
-            continue
-        for line in out.splitlines():
-            line = line.strip()
-            if line.startswith('inet '):
-                parts = line.split()
-                if len(parts) >= 2:
-                    detected = detect_from_ip_mask(parts[1])
-                    if detected:
-                        break
-        if detected:
-            break
-if not detected:
-    for cmd in (["ip", "-4", "route", "show", "dev", "br-lan", "scope", "link"], ["ip", "-4", "route", "show", "scope", "link"]):
-        rc, out, _ = run_cmd(cmd)
-        if rc != 0 or not out:
-            continue
-        for line in out.splitlines():
-            token = line.strip().split()[0] if line.strip() else ''
-            try:
-                net = ipaddress.ip_network(token, strict=False)
-                if net.version == 4:
-                    detected = str(net)
-                    break
-            except Exception:
-                continue
-        if detected:
-            break
-print(detected or fallback)
-PY
-}
-
 write_default_config() {
-  ROUTERDASH_LOCAL_NETWORK_CIDR="$(detect_local_network_cidr)"
-  LANG_CODE="$LANG_CODE" CONF_DIR="$CONF_DIR" ROUTERDASH_LOCAL_NETWORK_CIDR="$ROUTERDASH_LOCAL_NETWORK_CIDR" python3 - <<'PY'
-import json
-import os
+  LANG_CODE="$LANG_CHOICE" CONF_DIR="$CONF_DIR" python3 - <<'PY'
+import json, os, subprocess, ipaddress
 from copy import deepcopy
 
 conf_dir = os.environ['CONF_DIR']
@@ -344,13 +185,56 @@ if lang not in {'ru', 'en'}:
     lang = 'ru'
 config_path = os.path.join(conf_dir, 'config.json')
 
+def run_cmd(args):
+    try:
+        p = subprocess.run(args, capture_output=True, text=True, timeout=4)
+        return p.returncode, (p.stdout or '').strip()
+    except Exception:
+        return 1, ''
+
+def normalize_net(value):
+    try:
+        net = ipaddress.ip_network(str(value).strip(), strict=False)
+        if net.version == 4:
+            return str(net)
+    except Exception:
+        pass
+    return None
+
+def detect_system_local_network_cidr():
+    fallback = '192.168.0.0/24'
+    rc, out = run_cmd(['uci', '-q', 'get', 'network.lan.ipaddr'])
+    ipaddr = out if rc == 0 else ''
+    rc, out = run_cmd(['uci', '-q', 'get', 'network.lan.netmask'])
+    netmask = out if rc == 0 else ''
+    try:
+        if ipaddr:
+            if '/' in ipaddr:
+                return str(ipaddress.ip_interface(ipaddr).network)
+            if netmask:
+                return str(ipaddress.ip_network(f'{ipaddr}/{netmask}', strict=False))
+            return str(ipaddress.ip_network(f'{ipaddr}/24', strict=False))
+    except Exception:
+        pass
+    for dev in ('br-lan', 'lan'):
+        rc, out = run_cmd(['ip', '-4', 'addr', 'show', 'dev', dev])
+        if rc != 0 or not out:
+            continue
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith('inet '):
+                token = line.split()[1]
+                try:
+                    return str(ipaddress.ip_interface(token).network)
+                except Exception:
+                    pass
+    return fallback
+
+system_net = detect_system_local_network_cidr()
 defaults = {
     'version': 1,
     'secret_key': '',
-    'admin': {
-        'username': '',
-        'password_hash': '',
-    },
+    'admin': {'username': '', 'password_hash': ''},
     'settings': {
         'bind_host': '0.0.0.0',
         'port': 1999,
@@ -358,7 +242,7 @@ defaults = {
         'poll_interval_ms': 1500,
         'offline_grace_sec': 120,
         'activity_total_kbps': 250,
-        'local_network_cidr': os.environ.get('ROUTERDASH_LOCAL_NETWORK_CIDR', '192.168.0.0/24') or '192.168.0.0/24',
+        'local_network_cidr': system_net,
         'track_ipv6': True,
         'notify_online': True,
         'notify_offline': True,
@@ -389,13 +273,15 @@ config.setdefault('version', defaults['version'])
 config.setdefault('secret_key', defaults['secret_key'])
 config.setdefault('admin', deepcopy(defaults['admin']))
 settings = config.setdefault('settings', deepcopy(defaults['settings']))
-
 for key, value in defaults['settings'].items():
-    if key not in settings:
-        settings[key] = deepcopy(value)
-
+    settings.setdefault(key, deepcopy(value))
+legacy = {'', '192.168.0.0/24'}
+normalized_existing = normalize_net(settings.get('local_network_cidr', ''))
+if normalized_existing is None or str(settings.get('local_network_cidr', '')).strip() in legacy:
+    settings['local_network_cidr'] = system_net
+else:
+    settings['local_network_cidr'] = normalized_existing
 settings['language'] = lang
-
 with open(config_path, 'w', encoding='utf-8') as fh:
     json.dump(config, fh, ensure_ascii=False, indent=2, sort_keys=True)
 PY
@@ -434,110 +320,72 @@ start_service_with_retry() {
 }
 
 install_routerdash() {
-  print_banner
   ensure_apk
-
-  step 1 9 "$(say step_pkg)"
+  step 1 10 "$(say step_pkg)"
   apk update
   apk add python3 python3-flask ca-bundle nlbwmon iwinfo
 
-  step 2 9 "$(say step_dirs)"
+  step 2 10 "$(say step_dirs)"
   mkdir -p "$APP_DIR" "$CONF_DIR"
 
-  step 3 9 "$(say step_copy)"
-  [ -f "$SCRIPT_DIR/routerdash.py" ] || { err "$(say missing_py)"; exit 1; }
-  [ -f "$SCRIPT_DIR/routerdash.init" ] || { err "$(say missing_init)"; exit 1; }
-  [ -f "$SCRIPT_DIR/blinker.py" ] || { err "$(say missing_blinker)"; exit 1; }
+  step 3 10 "$(say step_patch)"
+  [ -f "$SCRIPT_DIR/routerdash.py" ] || { echo "$(say missing_py)" >&2; exit 1; }
+  [ -f "$SCRIPT_DIR/routerdash_patch.py" ] || { echo "$(say missing_patch)" >&2; exit 1; }
+  python3 "$SCRIPT_DIR/routerdash_patch.py" "$SCRIPT_DIR/routerdash.py"
+
+  step 4 10 "$(say step_copy)"
+  [ -f "$SCRIPT_DIR/routerdash.init" ] || { echo "$(say missing_init)" >&2; exit 1; }
+  [ -f "$SCRIPT_DIR/blinker.py" ] || { echo "$(say missing_blinker)" >&2; exit 1; }
   copy_with_mode 0755 "$SCRIPT_DIR/routerdash.py" "$APP_DIR/routerdash.py"
   copy_with_mode 0644 "$SCRIPT_DIR/blinker.py" "$APP_DIR/blinker.py"
   copy_with_mode 0755 "$SCRIPT_DIR/routerdash.init" "$INIT_FILE"
 
-  step 4 9 "$(say step_cfg)"
+  step 5 10 "$(say step_cfg)"
   write_default_config
 
-  step 5 9 "$(say step_nlbw)"
+  step 6 10 "$(say step_nlbw)"
   configure_nlbwmon
 
-  step 6 9 "$(say step_enable)"
+  step 7 10 "$(say step_enable)"
   /etc/init.d/routerdash enable >/dev/null 2>&1 || true
 
-  step 7 9 "$(say step_start)"
-  if ! start_service_with_retry; then
-    warn "$(say service_fail)"
-  fi
+  step 8 10 "$(say step_start)"
+  start_service_with_retry || true
 
-  step 8 9 "$(say step_check)"
+  step 9 10 "$(say step_check)"
   /etc/init.d/routerdash status || true
 
+  step 10 10 "$(say step_done)"
   LAN_IP="$(uci -q get network.lan.ipaddr || echo 192.168.1.1)"
   LAN_IP="${LAN_IP%%/*}"
-
-  step 9 9 "$(say step_done)"
   if service_running; then
-    ok "$(say service_ok)"
+    echo "$(say service_ok)"
   else
-    warn "$(say service_fail)"
+    echo "$(say service_fail)"
   fi
   printf '%s http://%s:1999\n' "$(say open)" "$LAN_IP"
   printf '%s\n' "$(say first)"
 }
 
 uninstall_routerdash() {
-  print_banner
-  if ! is_installed; then
-    warn "$(say remove_missing)"
+  if [ ! -f "$APP_DIR/routerdash.py" ] && [ ! -x "$INIT_FILE" ] && [ ! -d "$CONF_DIR" ]; then
+    echo "$(say remove_missing)"
     return 0
   fi
-
-  step 1 5 "$(say step_stop)"
+  step 1 4 "$(say step_stop)"
   [ -x "$INIT_FILE" ] && /etc/init.d/routerdash stop >/dev/null 2>&1 || true
-
-  step 2 5 "$(say step_disable)"
+  step 2 4 "$(say step_disable)"
   [ -x "$INIT_FILE" ] && /etc/init.d/routerdash disable >/dev/null 2>&1 || true
-
-  step 3 5 "$(say step_kill)"
+  step 3 4 "$(say step_kill)"
   pkill -f '/opt/routerdash/routerdash.py' >/dev/null 2>&1 || true
   rm -f "$PID_FILE"
-
-  step 4 5 "$(say step_rm)"
+  step 4 4 "$(say step_rm)"
   rm -f "$INIT_FILE"
   rm -rf "$APP_DIR" "$CONF_DIR"
-
-  step 5 5 "$(say step_removed)"
-  ok "$(say step_removed)"
+  echo "$(say step_removed)"
 }
 
-show_status() {
-  print_banner
-  printf '%s\n' "$(say status_title)"
-  printf '%s: %s\n' "$(say source_dir)" "$SCRIPT_DIR"
-  if [ -x "$INIT_FILE" ]; then
-    /etc/init.d/routerdash status || true
-    if service_running; then
-      ok "$(say service_ok)"
-    else
-      warn "$(say service_fail)"
-    fi
-  else
-    warn "$(say remove_missing)"
-  fi
-}
-
-case "$ACTION" in
-  install)
-    install_routerdash
-    ;;
-  reinstall)
-    uninstall_routerdash
-    install_routerdash
-    ;;
-  uninstall)
-    uninstall_routerdash
-    ;;
-  status)
-    show_status
-    ;;
-  *)
-    install_routerdash
-    ;;
+case "$ACTION_CHOICE" in
+  uninstall) uninstall_routerdash ;;
+  *) install_routerdash ;;
 esac
