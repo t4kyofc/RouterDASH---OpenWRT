@@ -966,30 +966,309 @@ def render_conn_details(rows: List[Dict[str, Any]], count: int) -> str:
 
 
 HTML_BASE = """
-<!doctype html><html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title>
-<style>
-:root{--bg:#05080d;--panel:#101926;--panel2:#142233;--text:#eef3fb;--muted:#8ea0b6;--orange:#ff9b1f;--green:#26d06f;--yellow:#d7aa38;--red:#ff5268;--border:rgba(255,155,31,.24)}*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;color:var(--text);background:radial-gradient(circle at 12% 8%,rgba(255,155,31,.18),transparent 26%),radial-gradient(circle at 90% 16%,rgba(255,111,0,.12),transparent 30%),#05080d}.wrap{max-width:1680px;margin:0 auto;padding:18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.brand h1{margin:0;font-size:34px}.brand p{margin:6px 0 0;color:var(--muted)}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn,button{background:linear-gradient(180deg,#ffad38,#ff7a00);border:0;border-radius:14px;color:#1b0b00;font-weight:700;padding:10px 14px;cursor:pointer}.btn.secondary{background:#172536;color:var(--text);border:1px solid var(--border)}.cards{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px;margin:18px 0}.card,.panel{background:rgba(16,25,38,.88);border:1px solid var(--border);border-radius:22px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.card b{font-size:28px;display:block}.card span{color:var(--muted)}table{width:100%;border-collapse:separate;border-spacing:0 8px}th{text-align:left;color:var(--muted);font-size:13px;padding:0 10px}td{background:rgba(20,34,51,.84);padding:10px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}td:first-child{border-radius:16px 0 0 16px;border-left:1px solid rgba(255,255,255,.06)}td:last-child{border-radius:0 16px 16px 0;border-right:1px solid rgba(255,255,255,.06)}.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);margin:2px;white-space:nowrap}.metric{min-width:82px;justify-content:center}.ok{color:#baffd6;border-color:rgba(38,208,111,.35)}.warn{color:#ffe6a0;border-color:rgba(215,170,56,.36)}.bad{color:#ffb7c0;border-color:rgba(255,82,104,.32)}.status-dot{width:12px;height:12px;border-radius:50%;display:inline-block;box-shadow:0 0 0 0 currentColor;animation:pulse 1.8s infinite}.ok .status-dot{background:var(--green);color:rgba(38,208,111,.4)}.warn .status-dot{background:var(--yellow);color:rgba(215,170,56,.4)}.bad .status-dot{background:var(--red);color:rgba(255,82,104,.4);animation:none}@keyframes pulse{70%{box-shadow:0 0 0 12px transparent}}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10;padding:20px;overflow:auto}.modal.open{display:block}.modal .box{max-width:820px;margin:40px auto;background:#0d1723;border:1px solid var(--border);border-radius:24px;padding:18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:12px}label{display:block;color:var(--muted);font-size:13px;margin:6px 0}input{width:100%;background:#07111b;border:1px solid rgba(255,255,255,.09);border-radius:12px;color:var(--text);padding:10px}.checks{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:8px}.checks label{background:rgba(255,255,255,.04);padding:10px;border-radius:12px}.events{display:grid;gap:8px}.event{background:rgba(255,255,255,.04);border-radius:12px;padding:10px}.muted{color:var(--muted)}.conn{position:relative}.conn summary{list-style:none;cursor:pointer}.conn-pop{position:absolute;right:0;z-index:3;background:#07111b;border:1px solid var(--border);border-radius:14px;padding:10px;min-width:340px;box-shadow:0 20px 50px rgba(0,0,0,.5)}.conn-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:7px;border-bottom:1px solid rgba(255,255,255,.06)}.toast{position:fixed;right:18px;bottom:18px;background:#142233;border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:none}@media(max-width:900px){.cards,.grid,.checks{grid-template-columns:1fr}.wrap{padding:10px}table{font-size:13px;display:block;overflow-x:auto}.top{flex-direction:column}}
-</style></head><body><div class="wrap">{{ body|safe }}</div><div id="toast" class="toast">{{ copied }}</div><script>
-document.addEventListener('click',e=>{const c=e.target.closest('.chip:not(.no-copy)');if(c){navigator.clipboard&&navigator.clipboard.writeText(c.dataset.copy||c.innerText);let t=document.getElementById('toast');t.style.display='block';clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.style.display='none',1800)}});
-function openModal(id){document.getElementById(id).classList.add('open')}function closeModal(id){document.getElementById(id).classList.remove('open')}
-</script></body></html>
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    :root {
+      --bg: #05080d;
+      --panel: rgba(10,17,29,.94);
+      --panel2: rgba(16,26,42,.96);
+      --text: #eef3fb;
+      --muted: #9fb0c7;
+      --muted2: #7d8ea7;
+      --orange: #ff9b1f;
+      --orange2: #ff7a00;
+      --blue: #2f8cff;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --border: #1d2e47;
+      --shadow: 0 34px 90px rgba(0,0,0,.48);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(255,155,31,.22), transparent 27%),
+        radial-gradient(circle at 86% 14%, rgba(47,140,255,.18), transparent 28%),
+        radial-gradient(circle at 78% 86%, rgba(34,197,94,.12), transparent 25%),
+        linear-gradient(180deg, #05080d 0%, #08101a 100%);
+      background-attachment: fixed;
+    }
+    body.modal-open { overflow: hidden; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(100%, 1400px); margin: 0 auto; padding: 18px; }
+
+    .app-shell {
+      background: linear-gradient(180deg, rgba(11,18,32,.98), rgba(6,10,17,.98));
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .shell-accent { height: 7px; background: linear-gradient(90deg, var(--orange), #ffc266 22%, var(--blue) 72%, #56d67b); }
+    .shell-inner { padding: 28px; }
+
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .brand { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .brand-line { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .brand h1 { margin: 0; font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -.03em; }
+    .brand p { margin: 0; color: var(--muted); line-height: 1.5; max-width: 820px; }
+    .build-badge {
+      display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px;
+      border-radius: 999px; background: rgba(14,23,38,.88); border: 1px solid #263854;
+      color: #cfe4d7; font-size: 14px; white-space: nowrap;
+    }
+    .build-badge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 8px rgba(34,197,94,.12); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .btn, button {
+      appearance: none; border: 0; border-radius: 16px; padding: 11px 16px;
+      font-weight: 700; font-size: 14px; cursor: pointer; color: #1e1200;
+      background: linear-gradient(180deg, #ffb443, #ff7a00); box-shadow: 0 10px 24px rgba(255,122,0,.18);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn.secondary, button.secondary {
+      color: var(--text); background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08); box-shadow: none;
+    }
+
+    .banner-stack { display: grid; gap: 12px; margin-bottom: 18px; }
+    .banner, .panel, .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 24px; box-shadow: 0 14px 34px rgba(0,0,0,.20);
+    }
+    .banner { padding: 14px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .banner.warning { border-color: rgba(239,68,68,.30); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .card { position: relative; overflow: hidden; padding: 18px 20px; background: linear-gradient(180deg, rgba(16,26,42,.96), rgba(10,17,29,.96)); }
+    .card::after { content: ""; position: absolute; right: -10px; top: -10px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,.035); }
+    .card .label { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+    .card .value { font-size: clamp(32px, 4vw, 48px); font-weight: 800; line-height: 1; margin-bottom: 10px; }
+    .card .desc { color: var(--muted2); font-size: 13px; line-height: 1.45; max-width: 28ch; }
+    .card.online { background-image: linear-gradient(180deg, rgba(16,26,42,.96), rgba(10,17,29,.96)), radial-gradient(circle at 80% 25%, rgba(34,197,94,.18), transparent 36%); }
+    .card.active { background-image: linear-gradient(180deg, rgba(16,26,42,.96), rgba(10,17,29,.96)), radial-gradient(circle at 80% 25%, rgba(255,155,31,.18), transparent 36%); }
+    .card.alerts { background-image: linear-gradient(180deg, rgba(16,26,42,.96), rgba(10,17,29,.96)), radial-gradient(circle at 80% 25%, rgba(47,140,255,.18), transparent 36%); }
+
+    .panel { padding: 20px; }
+    .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .section-head h2 { margin: 0; font-size: 22px; }
+    .section-head p { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
+    .table-wrap { overflow-x: auto; border-radius: 20px; background: rgba(7,16,27,.55); border: 1px solid rgba(255,255,255,.035); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 980px; }
+    thead th {
+      text-align: left; font-size: 13px; font-weight: 600; color: #8090a8; padding: 16px 14px;
+      border-bottom: 1px solid var(--border); background: rgba(7,16,27,.88);
+    }
+    tbody td { padding: 14px; border-bottom: 1px solid rgba(29,46,71,.72); vertical-align: middle; background: rgba(7,16,27,.35); }
+    tbody tr:hover td { background: rgba(11,18,32,.72); }
+    tbody tr:last-child td { border-bottom: 0; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; min-height: 36px; border-radius: 999px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); white-space: nowrap; font-size: 14px; line-height: 1.2;
+    }
+    .metric { min-width: 94px; justify-content: center; }
+    .ok { color: #d8fee7; border-color: rgba(34,197,94,.30); background: rgba(34,197,94,.08); }
+    .warn { color: #ffe7a8; border-color: rgba(234,179,8,.30); background: rgba(234,179,8,.08); }
+    .bad { color: #ffc9cf; border-color: rgba(239,68,68,.28); background: rgba(239,68,68,.08); }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 0 currentColor; animation: pulse 1.8s infinite; flex: 0 0 auto; }
+    .ok .status-dot { background: var(--green); color: rgba(34,197,94,.36); }
+    .warn .status-dot { background: var(--yellow); color: rgba(234,179,8,.36); }
+    .bad .status-dot { background: var(--red); color: rgba(239,68,68,.30); animation: none; }
+    @keyframes pulse { 70% { box-shadow: 0 0 0 14px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+    .muted { color: var(--muted); }
+    .auth-wrap { min-height: calc(100vh - 36px); display: grid; place-items: center; padding: 16px 0; }
+    .auth-card { width: min(100%, 520px); padding: 28px; background: linear-gradient(180deg, rgba(11,18,32,.96), rgba(6,10,17,.98)); border: 1px solid var(--border); border-radius: 28px; box-shadow: var(--shadow); }
+    .auth-card h1 { margin: 0 0 8px; font-size: 34px; }
+    .auth-card .subtitle { color: var(--muted); line-height: 1.55; margin-bottom: 18px; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(3,7,12,.72); backdrop-filter: blur(8px); z-index: 30; padding: 24px; overflow: auto; }
+    .modal.open { display: block; }
+    .modal .box { width: min(100%, 980px); margin: 24px auto; background: linear-gradient(180deg, rgba(11,18,32,.98), rgba(6,10,17,.98)); border: 1px solid var(--border); border-radius: 28px; box-shadow: var(--shadow); padding: 24px; }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .modal-head h2 { margin: 0; font-size: 24px; }
+    .modal-close { width: 40px; height: 40px; border-radius: 12px; padding: 0; font-size: 20px; background: rgba(255,255,255,.05); color: var(--text); border: 1px solid rgba(255,255,255,.08); box-shadow: none; }
+
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 14px; }
+    .field { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 18px; padding: 12px; }
+    label { display: block; color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+    input { width: 100%; background: rgba(7,16,27,.95); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; color: var(--text); padding: 11px 12px; outline: none; }
+    input:focus { border-color: rgba(47,140,255,.48); box-shadow: 0 0 0 3px rgba(47,140,255,.15); }
+    .checks { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+    .checks label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.05); color: var(--text); cursor: pointer; }
+    .checks input { width: 18px; height: 18px; padding: 0; accent-color: var(--orange); box-shadow: none; }
+    .form-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .events { display: grid; gap: 10px; }
+    .event { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 16px; padding: 14px; line-height: 1.5; }
+    .event .meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+    .conn { position: relative; }
+    .conn summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+    .conn summary::-webkit-details-marker { display: none; }
+    .conn-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 4; background: #07101b; border: 1px solid var(--border); border-radius: 18px; padding: 12px; min-width: 360px; box-shadow: 0 24px 60px rgba(0,0,0,.50); }
+    .conn-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .conn-row:last-child { border-bottom: 0; }
+
+    .toast { position: fixed; right: 18px; bottom: 18px; z-index: 60; background: rgba(10,17,29,.96); border: 1px solid rgba(255,155,31,.22); border-radius: 16px; padding: 12px 14px; display: none; box-shadow: 0 18px 40px rgba(0,0,0,.34); }
+
+    @media (max-width: 1080px) { .stats-grid { grid-template-columns: repeat(2, minmax(200px, 1fr)); } .hero { flex-direction: column; } .actions { justify-content: flex-start; } .grid, .checks { grid-template-columns: 1fr; } .shell-inner { padding: 22px; } }
+    @media (max-width: 720px) { .wrap { padding: 10px; } .shell-inner { padding: 16px; } .stats-grid { grid-template-columns: 1fr; } .panel, .card { border-radius: 20px; } .auth-card { padding: 22px; } .modal { padding: 12px; } .modal .box { padding: 18px; border-radius: 22px; } .conn-pop { left: 0; right: auto; min-width: 280px; max-width: calc(100vw - 36px); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">{{ body|safe }}</div>
+  <div id="toast" class="toast">{{ copied }}</div>
+  <script>
+    function setModalState(){document.body.classList.toggle('modal-open', !!document.querySelector('.modal.open'))}
+    document.addEventListener('click', function(e){
+      const chip=e.target.closest('.chip:not(.no-copy)');
+      if(chip){
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(chip.dataset.copy||chip.innerText||'')}
+        const t=document.getElementById('toast'); t.style.display='block'; clearTimeout(window.__toast); window.__toast=setTimeout(function(){t.style.display='none'},1800)
+      }
+      if(e.target.classList.contains('modal')){e.target.classList.remove('open');setModalState()}
+    });
+    function openModal(id){const el=document.getElementById(id);if(el){el.classList.add('open');setModalState()}}
+    function closeModal(id){const el=document.getElementById(id);if(el){el.classList.remove('open');setModalState()}}
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.querySelectorAll('.modal.open').forEach(function(el){el.classList.remove('open')});setModalState()}});
+  </script>
+</body>
+</html>
 """
 
 SETUP_TEMPLATE = """
-<div class="panel" style="max-width:460px;margin:8vh auto"><h1>RouterDash</h1><p class="muted">{{ t('setup_intro') }}</p>{% if error %}<p class="bad">{{ error }}</p>{% endif %}<form method="post"><label>{{ t('username') }}</label><input name="username" required><label>{{ t('password') }}</label><input type="password" name="password" required><label>{{ t('repeat_password') }}</label><input type="password" name="password2" required><br><br><button>{{ t('create_admin') }}</button></form><p class="muted">{{ t('setup_footer') }}</p></div>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand-line" style="margin-bottom:10px"><h1>RouterDash</h1><span class="build-badge">Presence-fixed build</span></div>
+    <p class="subtitle">{{ t('setup_intro') }}</p>
+    {% if error %}<div class="banner warning"><strong>⚠</strong><span>{{ error }}</span></div>{% endif %}
+    <form method="post">
+      <div class="grid">
+        <div class="field"><label>{{ t('username') }}</label><input name="username" required></div>
+        <div class="field"><label>{{ t('password') }}</label><input type="password" name="password" required></div>
+        <div class="field" style="grid-column:1 / -1"><label>{{ t('repeat_password') }}</label><input type="password" name="password2" required></div>
+      </div>
+      <div class="form-actions"><button>{{ t('create_admin') }}</button></div>
+    </form>
+    <p class="muted" style="margin-top:14px">{{ t('setup_footer') }}</p>
+  </div>
+</div>
 """
 
 LOGIN_TEMPLATE = """
-<div class="panel" style="max-width:460px;margin:8vh auto"><h1>RouterDash</h1><p class="muted">{{ t('login_intro') }}</p>{% if message %}<p class="ok">{{ message }}</p>{% endif %}{% if error %}<p class="bad">{{ error }}</p>{% endif %}<form method="post"><label>{{ t('username') }}</label><input name="username" required><label>{{ t('password') }}</label><input type="password" name="password" required><br><br><button>{{ t('sign_in') }}</button></form></div>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="brand-line" style="margin-bottom:10px"><h1>RouterDash</h1><span class="build-badge">Presence-fixed build</span></div>
+    <p class="subtitle">{{ t('login_intro') }}</p>
+    {% if message %}<div class="banner"><strong>✓</strong><span>{{ message }}</span></div>{% endif %}
+    {% if error %}<div class="banner warning"><strong>⚠</strong><span>{{ error }}</span></div>{% endif %}
+    <form method="post">
+      <div class="grid">
+        <div class="field"><label>{{ t('username') }}</label><input name="username" required></div>
+        <div class="field"><label>{{ t('password') }}</label><input type="password" name="password" required></div>
+      </div>
+      <div class="form-actions"><button>{{ t('sign_in') }}</button></div>
+    </form>
+  </div>
+</div>
 """
 
 DASHBOARD_TEMPLATE = """
-<div class="top"><div class="brand"><h1>RouterDash</h1><p>{{ t('app_subtitle') }} · {{ t('port_short') }}: {{ settings.port }} · {{ t('poll_frequency') }}: {{ settings.poll_interval_ms }} {{ t('ms') }}</p></div><div class="actions"><button onclick="openModal('settings')">⚙ {{ t('settings') }}</button><button class="btn secondary" onclick="openModal('logs')">📋 {{ t('logs') }}</button><a class="btn secondary" href="{{ url_for('logout') }}">{{ t('logout') }}</a></div></div>
-{% if info %}<p class="chip ok no-copy">{{ info }}</p>{% endif %}{% if error %}<p class="chip bad no-copy">{{ error }}</p>{% endif %}{% if warnings %}<div class="panel"><b>{{ t('warnings') }}:</b> {% for w in warnings %}<span class="chip bad no-copy">{{ w }}</span>{% endfor %}</div>{% endif %}
-<div class="cards"><div class="card"><b>{{ summary.total }}</b><span>{{ t('devices') }}</span></div><div class="card"><b>{{ summary.online }}</b><span>{{ t('connected_now') }}</span></div><div class="card"><b>{{ summary.active }}</b><span>{{ t('active') }}</span></div><div class="card"><b>{{ summary.idle }}</b><span>{{ t('idle') }}</span></div></div>
-<div class="panel"><h2>{{ t('devices_section') }}</h2><table><thead><tr><th>{{ t('th_status') }}</th><th>{{ t('th_name') }}</th><th>{{ t('th_ipv4') }}</th><th>{{ t('th_mac') }}</th><th>{{ t('th_down') }}</th><th>{{ t('th_up') }}</th><th>{{ t('th_total') }}</th><th>{{ t('th_conns') }}</th><th>{{ t('th_last_seen') }}</th></tr></thead><tbody>{% for d in devices %}<tr><td>{{ d.status_chip|safe }}</td><td>{{ d.name_chip|safe }}</td><td>{{ d.ipv4_chip|safe }}</td><td>{{ d.mac_chip|safe }}</td><td>{{ d.down_chip|safe }}</td><td>{{ d.up_chip|safe }}</td><td>{{ d.total_chip|safe }}</td><td>{{ d.conns_chip|safe }}</td><td>{{ d.last_seen_chip|safe }}</td></tr>{% endfor %}</tbody></table></div>
-<div id="logs" class="modal"><div class="box"><button style="float:right" onclick="closeModal('logs')">×</button><h2>{{ t('logs') }}</h2><div class="events">{% for e in events %}<div class="event"><b>{{ e.ts_h }}</b> — {{ e.message }}<br><span class="muted">{{ t('event_type') }}: {{ e.kind }}{% if e.mac %} · {{ e.mac }}{% endif %}</span></div>{% endfor %}{% if not events %}<p>{{ t('no_events') }}</p>{% endif %}</div></div></div>
-<div id="settings" class="modal"><div class="box"><button style="float:right" onclick="closeModal('settings')">×</button><h2>{{ t('settings') }}</h2><form method="post" action="{{ url_for('save_settings') }}"><h3>{{ t('system') }}</h3><div class="grid"><div><label>{{ t('web_port') }}</label><input name="port" value="{{ settings.port }}"></div><div><label>{{ t('poll_interval_ms') }}</label><input name="poll_interval_ms" value="{{ settings.poll_interval_ms }}"></div><div><label>{{ t('offline_grace') }}</label><input name="offline_grace_sec" value="{{ settings.offline_grace_sec }}"></div><div><label>{{ t('presence_probe_cooldown') }}</label><input name="presence_probe_cooldown_sec" value="{{ settings.presence_probe_cooldown_sec }}"></div><div><label>{{ t('activity_threshold') }}</label><input name="activity_total_kbps" value="{{ settings.activity_total_kbps }}"></div><div><label>{{ t('local_network_cidr') }}</label><input name="local_network_cidr" value="{{ settings.local_network_cidr }}"></div></div><h3>{{ t('tg_monitoring') }}</h3><div class="grid"><div><label>{{ t('tg_bot_token') }}</label><input name="telegram_bot_token" value="{{ settings.telegram_bot_token }}"></div><div><label>{{ t('tg_chat_id') }}</label><input name="telegram_chat_id" value="{{ settings.telegram_chat_id }}"></div><div><label>{{ t('notification_threshold') }}</label><input name="notification_total_kbps" value="{{ settings.notification_total_kbps }}"></div></div><div class="checks">{% for name,label in checks %}<label><input type="checkbox" name="{{ name }}" {% if settings.get(name) %}checked{% endif %}> {{ label }}</label>{% endfor %}</div><h3>{{ t('tg_devices') }}</h3><div class="checks">{% for item in telegram_devices %}<label><input type="checkbox" name="telegram_selected_devices" value="{{ item.mac }}" {% if item.selected %}checked{% endif %}> {{ item.display_name }} · {{ item.mac }}</label>{% endfor %}</div><br><button>{{ t('save_settings') }}</button></form><form method="post" action="{{ url_for('test_telegram') }}"><button class="btn secondary" style="margin-top:10px">{{ t('send_test_telegram') }}</button></form><h3>{{ t('admin_account') }}</h3><form method="post" action="{{ url_for('change_password') }}"><div class="grid"><div><label>{{ t('new_username') }}</label><input name="username" value="{{ admin_username }}"></div><div><label>{{ t('current_password') }}</label><input type="password" name="current_password"></div><div><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div><div><label>{{ t('repeat_new_password') }}</label><input type="password" name="new_password2"></div></div><br><button>{{ t('update_credentials') }}</button></form><form method="post" action="{{ url_for('set_language') }}"><h3>{{ t('choose_language') }}</h3><button name="language" value="ru" class="btn secondary">{{ t('russian') }}</button> <button name="language" value="en" class="btn secondary">{{ t('english') }}</button></form></div></div>
+<div class="app-shell">
+  <div class="shell-accent"></div>
+  <div class="shell-inner">
+    <div class="hero">
+      <div class="brand">
+        <div class="brand-line"><h1>RouterDash</h1><span class="build-badge">Presence-fixed build</span></div>
+        <p>{{ t('app_subtitle') }}</p>
+        <p class="muted">{{ t('port_short') }}: {{ settings.port }} · {{ t('poll_frequency') }}: {{ settings.poll_interval_ms }} {{ t('ms') }}</p>
+      </div>
+      <div class="actions">
+        <button onclick="openModal('settings')">⚙ {{ t('settings') }}</button>
+        <button class="secondary" onclick="openModal('logs')">📋 {{ t('logs') }}</button>
+        <a class="btn secondary" href="{{ url_for('logout') }}">↪ {{ t('logout') }}</a>
+      </div>
+    </div>
+
+    {% if info or error or warnings %}
+    <div class="banner-stack">
+      {% if info %}<div class="banner"><strong>ℹ</strong><span>{{ info }}</span></div>{% endif %}
+      {% if error %}<div class="banner warning"><strong>⚠</strong><span>{{ error }}</span></div>{% endif %}
+      {% if warnings %}<div class="banner warning"><strong>{{ t('warnings') }}:</strong>{% for w in warnings %}<span class="chip no-copy bad">{{ w }}</span>{% endfor %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="stats-grid">
+      <div class="card"><div class="label">{{ t('devices') }}</div><div class="value">{{ summary.total }}</div><div class="desc">{{ t('devices_desc') }}</div></div>
+      <div class="card online"><div class="label">{{ t('connected_now') }}</div><div class="value">{{ summary.online }}</div><div class="desc">{{ t('connected_desc') }}</div></div>
+      <div class="card active"><div class="label">{{ t('active') }}</div><div class="value">{{ summary.active }}</div><div class="desc">{{ t('active_desc') }}</div></div>
+      <div class="card alerts"><div class="label">{{ t('idle') }}</div><div class="value">{{ summary.idle }}</div><div class="desc">{{ t('idle_desc') }}</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="section-head"><div><h2>{{ t('devices_section') }}</h2><p>{{ t('devices_caption') }}</p></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>{{ t('th_status') }}</th><th>{{ t('th_name') }}</th><th>{{ t('th_ipv4') }}</th><th>{{ t('th_mac') }}</th><th>{{ t('th_down') }}</th><th>{{ t('th_up') }}</th><th>{{ t('th_total') }}</th><th>{{ t('th_conns') }}</th><th>{{ t('th_last_seen') }}</th></tr></thead>
+          <tbody>{% for d in devices %}<tr><td>{{ d.status_chip|safe }}</td><td>{{ d.name_chip|safe }}</td><td>{{ d.ipv4_chip|safe }}</td><td>{{ d.mac_chip|safe }}</td><td>{{ d.down_chip|safe }}</td><td>{{ d.up_chip|safe }}</td><td>{{ d.total_chip|safe }}</td><td>{{ d.conns_chip|safe }}</td><td>{{ d.last_seen_chip|safe }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="logs" class="modal"><div class="box">
+  <div class="modal-head"><div><h2>{{ t('logs') }}</h2><p class="muted">{{ t('event_type') }}</p></div><button class="modal-close" type="button" onclick="closeModal('logs')">×</button></div>
+  <div class="events">{% for e in events %}<div class="event"><strong>{{ e.ts_h }}</strong> — {{ e.message }}<div class="meta">{{ t('event_type') }}: {{ e.kind }}{% if e.mac %} · {{ e.mac }}{% endif %}</div></div>{% endfor %}{% if not events %}<p>{{ t('no_events') }}</p>{% endif %}</div>
+</div></div>
+
+<div id="settings" class="modal"><div class="box">
+  <div class="modal-head"><div><h2>{{ t('settings') }}</h2><p class="muted">RouterDash · OpenWrt · Presence monitoring</p></div><button class="modal-close" type="button" onclick="closeModal('settings')">×</button></div>
+  <form method="post" action="{{ url_for('save_settings') }}">
+    <h3>{{ t('system') }}</h3>
+    <div class="grid">
+      <div class="field"><label>{{ t('web_port') }}</label><input name="port" value="{{ settings.port }}"></div>
+      <div class="field"><label>{{ t('poll_interval_ms') }}</label><input name="poll_interval_ms" value="{{ settings.poll_interval_ms }}"></div>
+      <div class="field"><label>{{ t('offline_grace') }}</label><input name="offline_grace_sec" value="{{ settings.offline_grace_sec }}"></div>
+      <div class="field"><label>{{ t('presence_probe_cooldown') }}</label><input name="presence_probe_cooldown_sec" value="{{ settings.presence_probe_cooldown_sec }}"></div>
+      <div class="field"><label>{{ t('activity_threshold') }}</label><input name="activity_total_kbps" value="{{ settings.activity_total_kbps }}"></div>
+      <div class="field"><label>{{ t('local_network_cidr') }}</label><input name="local_network_cidr" value="{{ settings.local_network_cidr }}"></div>
+    </div>
+    <h3>{{ t('tg_monitoring') }}</h3>
+    <div class="grid">
+      <div class="field"><label>{{ t('tg_bot_token') }}</label><input name="telegram_bot_token" value="{{ settings.telegram_bot_token }}"></div>
+      <div class="field"><label>{{ t('tg_chat_id') }}</label><input name="telegram_chat_id" value="{{ settings.telegram_chat_id }}"></div>
+      <div class="field"><label>{{ t('notification_threshold') }}</label><input name="notification_total_kbps" value="{{ settings.notification_total_kbps }}"></div>
+    </div>
+    <div class="checks">{% for name,label in checks %}<label><input type="checkbox" name="{{ name }}" {% if settings.get(name) %}checked{% endif %}> {{ label }}</label>{% endfor %}</div>
+    <h3>{{ t('tg_devices') }}</h3>
+    <div class="checks">{% for item in telegram_devices %}<label><input type="checkbox" name="telegram_selected_devices" value="{{ item.mac }}" {% if item.selected %}checked{% endif %}> {{ item.display_name }} · {{ item.mac }}</label>{% endfor %}</div>
+    <div class="form-actions"><button>{{ t('save_settings') }}</button></div>
+  </form>
+  <form method="post" action="{{ url_for('test_telegram') }}"><div class="form-actions"><button class="secondary" type="submit">{{ t('send_test_telegram') }}</button></div></form>
+  <h3>{{ t('admin_account') }}</h3>
+  <form method="post" action="{{ url_for('change_password') }}">
+    <div class="grid">
+      <div class="field"><label>{{ t('new_username') }}</label><input name="username" value="{{ admin_username }}"></div>
+      <div class="field"><label>{{ t('current_password') }}</label><input type="password" name="current_password"></div>
+      <div class="field"><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div>
+      <div class="field"><label>{{ t('repeat_new_password') }}</label><input type="password" name="new_password2"></div>
+    </div>
+    <div class="form-actions"><button type="submit">{{ t('update_credentials') }}</button></div>
+  </form>
+  <form method="post" action="{{ url_for('set_language') }}">
+    <h3>{{ t('choose_language') }}</h3>
+    <div class="form-actions"><button name="language" value="ru" class="secondary" type="submit">{{ t('russian') }}</button><button name="language" value="en" class="secondary" type="submit">{{ t('english') }}</button></div>
+  </form>
+</div></div>
 """
 
 store = Store()
