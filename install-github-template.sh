@@ -4,6 +4,7 @@ set -eu
 BASE_URL="${ROUTERDASH_BASE_URL:-https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main}"
 TMP_DIR="/tmp/routerdash-github-install"
 FILES="install.sh routerdash.py routerdash.init blinker.py"
+CACHE_BUST="$(date +%s 2>/dev/null || echo $$)"
 
 rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR"
@@ -34,7 +35,7 @@ fetch() {
 }
 
 for f in $FILES; do
-  fetch "$BASE_URL/$f" "$TMP_DIR/$f"
+  fetch "$BASE_URL/$f?nocache=$CACHE_BUST" "$TMP_DIR/$f"
 done
 
 chmod +x "$TMP_DIR/install.sh"
