@@ -10,19 +10,23 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 LANG_CHOICE=""
 ACTION_CHOICE=""
 
-has_tty() {
-  [ -t 1 ] && [ -r /dev/tty ] && [ -w /dev/tty ]
+is_interactive() {
+  [ -t 0 ] || { [ -r /dev/tty ] && [ -w /dev/tty ]; }
 }
 
 prompt_value() {
   prompt="$1"
-  if has_tty; then
+  answer=""
+  if [ -t 0 ]; then
+    printf '%s' "$prompt"
+    IFS= read -r answer || answer=""
+  elif [ -r /dev/tty ] && [ -w /dev/tty ]; then
     printf '%s' "$prompt" >/dev/tty
-    IFS= read -r answer </dev/tty || true
-    printf '%s' "$answer"
+    IFS= read -r answer </dev/tty || answer=""
   else
-    printf ''
+    answer=""
   fi
+  printf '%s' "$answer"
 }
 
 lower_trim() {
@@ -39,7 +43,7 @@ normalize_lang() {
 normalize_action() {
   case "$(lower_trim "$1")" in
     2|remove|delete|uninstall|--remove|--uninstall|--action=uninstall|--action=remove) echo uninstall ;;
-    3|reinstall|--reinstall|--action=reinstall) echo reinstall ;;
+    3|reinstall|clean|clean-reinstall|--reinstall|--clean-reinstall|--action=reinstall) echo reinstall ;;
     *) echo install ;;
   esac
 }
@@ -51,7 +55,7 @@ for arg in "$@"; do
     en|english|ru|russian|1|2)
       [ -z "$LANG_CHOICE" ] && LANG_CHOICE="$(normalize_lang "$arg")"
       ;;
-    install|update|uninstall|remove|delete|reinstall|3)
+    install|update|uninstall|remove|delete|reinstall|clean|clean-reinstall|3)
       ACTION_CHOICE="$(normalize_action "$arg")"
       ;;
   esac
@@ -59,11 +63,12 @@ done
 
 choose_lang() {
   [ -n "$LANG_CHOICE" ] && return 0
-  if has_tty; then
-    echo "Select installation language / Выберите язык установки" >/dev/tty
-    echo "  1) Русский" >/dev/tty
-    echo "  2) English" >/dev/tty
+  if is_interactive; then
+    echo "Select installation language / Выберите язык установки"
+    echo "  1) Русский"
+    echo "  2) English"
     LANG_CHOICE="$(normalize_lang "$(prompt_value 'Choice [1/2, default 1]: ')")"
+    echo ""
   else
     LANG_CHOICE="ru"
   fi
@@ -71,19 +76,20 @@ choose_lang() {
 
 choose_action() {
   [ -n "$ACTION_CHOICE" ] && return 0
-  if has_tty; then
+  if is_interactive; then
     if [ "$LANG_CHOICE" = "en" ]; then
-      echo "Choose action" >/dev/tty
-      echo "  1) Install / update" >/dev/tty
-      echo "  2) Remove RouterDash" >/dev/tty
-      echo "  3) Reinstall RouterDash" >/dev/tty
+      echo "Choose action"
+      echo "  1) Install / update        - keep existing settings"
+      echo "  2) Remove RouterDash       - remove app and config"
+      echo "  3) Clean reinstall         - remove app/config and install again"
     else
-      echo "Выберите действие" >/dev/tty
-      echo "  1) Установить / обновить" >/dev/tty
-      echo "  2) Удалить RouterDash" >/dev/tty
-      echo "  3) Переустановить RouterDash" >/dev/tty
+      echo "Выберите действие"
+      echo "  1) Установить / обновить   - сохранить текущие настройки"
+      echo "  2) Удалить RouterDash      - удалить приложение и конфиг"
+      echo "  3) Переустановить начисто  - удалить всё и установить заново"
     fi
     ACTION_CHOICE="$(normalize_action "$(prompt_value 'Choice [1/2/3, default 1]: ')")"
+    echo ""
   else
     ACTION_CHOICE="install"
   fi
@@ -97,12 +103,12 @@ say() {
   case "$LANG_CHOICE:$key" in
     ru:need_apk) echo "Требуется OpenWrt 25.12+ с apk." ;;
     en:need_apk) echo "OpenWrt 25.12+ with apk is required." ;;
-    ru:apk_locked) echo "База apk занята другим процессом. Завершите старый остановленный установщик/apk и запустите снова." ;;
-    en:apk_locked) echo "The apk database is locked. Stop the old suspended installer/apk process and run again." ;;
+    ru:apk_locked) echo "База apk занята другим процессом." ;;
+    en:apk_locked) echo "The apk database is locked by another process." ;;
     ru:step_check) echo "Проверка файлов и окружения" ;;
     en:step_check) echo "Checking files and environment" ;;
-    ru:step_pkg) echo "Установка пакетов" ;;
-    en:step_pkg) echo "Installing packages" ;;
+    ru:step_pkg) echo "Установка и проверка зависимостей" ;;
+    en:step_pkg) echo "Installing and checking dependencies" ;;
     ru:step_copy) echo "Копирование файлов" ;;
     en:step_copy) echo "Copying files" ;;
     ru:step_cfg) echo "Подготовка конфигурации" ;;
@@ -121,8 +127,8 @@ say() {
     en:step_clean) echo "Cleaning processes and PID" ;;
     ru:step_remove) echo "Удаление файлов" ;;
     en:step_remove) echo "Removing files" ;;
-    ru:removed) echo "RouterDash удалён" ;;
-    en:removed) echo "RouterDash removed" ;;
+    ru:removed) echo "RouterDash удалён полностью" ;;
+    en:removed) echo "RouterDash removed completely" ;;
     ru:missing_file) echo "Не найден обязательный файл" ;;
     en:missing_file) echo "Required file not found" ;;
     ru:open) echo "Откройте в браузере" ;;
@@ -147,6 +153,10 @@ die() {
   exit 1
 }
 
+warn() {
+  echo "WARNING: $*" >&2
+}
+
 require_file() {
   f="$1"
   [ -f "$f" ] || die "$(say missing_file): $f"
@@ -168,25 +178,40 @@ apk_processes() {
   ps w 2>/dev/null | grep -E '[ /](apk|opkg)( |$)' | grep -v grep || true
 }
 
-wait_apk_free() {
-  i=0
-  while [ "$i" -lt 30 ]; do
-    if apk info >/dev/null 2>&1; then
+apk_run() {
+  label="$1"
+  shift
+  tmp="/tmp/routerdash-apk.$$.log"
+  tries=0
+  max_tries=30
+  while [ "$tries" -lt "$max_tries" ]; do
+    if "$@" >"$tmp" 2>&1; then
+      cat "$tmp"
+      rm -f "$tmp"
       return 0
     fi
-    sleep 1
-    i=$((i + 1))
+    if grep -qiE 'lock database|temporarily unavailable|Failed to open apk database' "$tmp" 2>/dev/null; then
+      if [ "$tries" -eq 0 ]; then
+        echo "$(say apk_locked) Жду освобождения lock: $label" >&2
+        apk_processes >&2
+      fi
+      sleep 2
+      tries=$((tries + 1))
+      continue
+    fi
+    cat "$tmp" >&2
+    rm -f "$tmp"
+    return 1
   done
-
+  cat "$tmp" >&2
+  rm -f "$tmp"
   echo "ERROR: $(say apk_locked)" >&2
-  apk_processes >&2
-  echo "" >&2
   echo "Fix:" >&2
   echo "  jobs -l" >&2
   echo "  kill %1" >&2
   echo "  ps w | grep apk" >&2
   echo "  kill <PID>" >&2
-  exit 1
+  return 1
 }
 
 check_files() {
@@ -197,10 +222,21 @@ check_files() {
 
 install_packages() {
   command -v apk >/dev/null 2>&1 || die "$(say need_apk)"
-  wait_apk_free
-  apk update || die "apk update failed"
-  apk add python3 python3-flask ca-bundle nlbwmon iwinfo || die "apk add required packages failed"
-  apk add ip-full bridge-utils >/dev/null 2>&1 || true
+  apk_run "apk update" apk update || die "apk update failed"
+  apk_run "required packages" apk add python3 python3-flask ca-bundle nlbwmon iwinfo || die "apk add required packages failed"
+  apk_run "optional network tools" apk add ip-full bridge-utils >/dev/null 2>&1 || true
+
+  command -v python3 >/dev/null 2>&1 || die "python3 not found after install"
+  python3 - <<'PY' || exit 1
+import flask
+PY
+  [ $? -eq 0 ] || die "python3-flask is not importable"
+
+  [ -x /etc/init.d/nlbwmon ] || die "nlbwmon init script not found"
+  command -v iwinfo >/dev/null 2>&1 || warn "iwinfo command not found; Wi-Fi client detection can be limited"
+  command -v ip >/dev/null 2>&1 || die "ip command not found"
+  command -v ping >/dev/null 2>&1 || die "ping command not found"
+  command -v ubus >/dev/null 2>&1 || warn "ubus command not found; Wi-Fi detection can be limited"
 }
 
 write_default_config() {
