@@ -1,0 +1,78 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(154 87) rotate(31) scale(635 379)">
+      <stop stop-color="#ff9b1f" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#05080d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1042 105) rotate(142) scale(520 370)">
+      <stop stop-color="#2f8cff" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#05080d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(966 639) rotate(-151) scale(524 291)">
+      <stop stop-color="#22c55e" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#05080d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-50" y="-50" width="1380" height="820" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <linearGradient id="panel" x1="160" y1="85" x2="1120" y2="650" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#060a11"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#101a2a" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#0a111d" stop-opacity="0.96"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="#05080d"/>
+  <rect width="1280" height="720" fill="url(#g1)"/>
+  <rect width="1280" height="720" fill="url(#g2)"/>
+  <rect width="1280" height="720" fill="url(#g3)"/>
+  <g filter="url(#shadow)">
+    <rect x="104" y="58" width="1072" height="604" rx="34" fill="url(#panel)" stroke="#1c2b43"/>
+    <rect x="104" y="58" width="1072" height="604" rx="34" stroke="#ff9b1f" stroke-opacity="0.18"/>
+  </g>
+  <rect x="104" y="58" width="1072" height="7" rx="3.5" fill="#ff9b1f"/>
+  <g font-family="Segoe UI, Inter, Arial" fill="#eef3fb">
+    <text x="148" y="126" font-size="42" font-weight="800">RouterDash</text>
+    <text x="148" y="160" font-size="17" fill="#9fb0c7">OpenWrt dashboard for real home presence, traffic and Telegram alerts</text>
+  </g>
+  <g transform="translate(887 111)">
+    <rect width="238" height="42" rx="21" fill="#0e1726" stroke="#263854"/>
+    <circle cx="26" cy="21" r="9" fill="#22c55e"/>
+    <text x="47" y="27" font-family="Segoe UI, Inter, Arial" font-size="15" fill="#cfe4d7">Presence-fixed build</text>
+  </g>
+  <g transform="translate(148 207)">
+    <rect width="300" height="132" rx="24" fill="url(#card)" stroke="#20324d"/>
+    <text x="26" y="42" font-family="Segoe UI" font-size="15" fill="#9fb0c7">Online now</text>
+    <text x="26" y="92" font-family="Segoe UI" font-size="48" font-weight="800" fill="#eef3fb">7</text>
+    <circle cx="247" cy="72" r="34" fill="#22c55e" fill-opacity="0.12" stroke="#22c55e" stroke-opacity="0.55"/>
+    <circle cx="247" cy="72" r="10" fill="#22c55e"/>
+  </g>
+  <g transform="translate(490 207)">
+    <rect width="300" height="132" rx="24" fill="url(#card)" stroke="#20324d"/>
+    <text x="26" y="42" font-family="Segoe UI" font-size="15" fill="#9fb0c7">Active traffic</text>
+    <text x="26" y="92" font-family="Segoe UI" font-size="48" font-weight="800" fill="#eef3fb">3</text>
+    <path d="M216 92 C232 39, 252 58, 266 32" stroke="#ff9b1f" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="266" cy="32" r="8" fill="#ff9b1f"/>
+  </g>
+  <g transform="translate(832 207)">
+    <rect width="293" height="132" rx="24" fill="url(#card)" stroke="#20324d"/>
+    <text x="26" y="42" font-family="Segoe UI" font-size="15" fill="#9fb0c7">Telegram alerts</text>
+    <text x="26" y="92" font-family="Segoe UI" font-size="48" font-weight="800" fill="#eef3fb">ON</text>
+    <rect x="209" y="50" width="48" height="48" rx="14" fill="#2f8cff" fill-opacity="0.16"/>
+    <path d="M222 75 L250 61 L241 88 L234 80 L229 86 L229 78 L222 75Z" fill="#6db1ff"/>
+  </g>
+  <g transform="translate(148 381)">
+    <rect width="977" height="226" rx="26" fill="#07101b" stroke="#1d2e47"/>
+    <g font-family="Segoe UI, Inter, Arial" font-size="14" fill="#8090a8">
+      <text x="28" y="45">Status</text><text x="138" y="45">Device</text><text x="405" y="45">IPv4</text><text x="570" y="45">Speed</text><text x="725" y="45">Connections</text><text x="856" y="45">Last seen</text>
+    </g>
+    <line x1="25" y1="62" x2="952" y2="62" stroke="#1d2e47"/>
+    <g font-family="Segoe UI, Inter, Arial" font-size="18" fill="#eef3fb">
+      <circle cx="51" cy="98" r="10" fill="#22c55e"/><text x="86" y="104">POCO-X7-Pro</text><text x="405" y="104" fill="#91c7ff">172.20.1.252</text><text x="570" y="104">1.8 Mbit/s</text><text x="725" y="104">24</text><text x="856" y="104" fill="#9fb0c7">just now</text>
+      <circle cx="51" cy="148" r="10" fill="#eab308"/><text x="86" y="154">Laptop-Main</text><text x="405" y="154" fill="#91c7ff">172.20.1.42</text><text x="570" y="154">42 Kbit/s</text><text x="725" y="154">5</text><text x="856" y="154" fill="#9fb0c7">12 sec</text>
+      <circle cx="51" cy="198" r="10" fill="#ef4444"/><text x="86" y="204">Phone-Guest</text><text x="405" y="204" fill="#91c7ff">172.20.1.125</text><text x="570" y="204">0 Kbit/s</text><text x="725" y="204">0</text><text x="856" y="204" fill="#9fb0c7">left</text>
+    </g>
+  </g>
+</svg>
