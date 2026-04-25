@@ -12,7 +12,6 @@ start_service() {
         echo "$APP not found"
         return 1
     }
-
     procd_open_instance
     procd_set_param command "$PROG" "$APP"
     procd_set_param respawn 3600 5 5

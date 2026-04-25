@@ -1,26 +1,28 @@
-# RouterDash for OpenWrt
+# RouterDash — presence-fixed build
 
-Fixed installer bundle.
+Исправлена логика уведомлений о приходе/уходе устройств:
 
-## What changed
+- DHCP lease больше не считается доказательством, что устройство сейчас дома. Lease используется только как подсказка имени/IP.
+- Онлайн подтверждается только сильным сигналом: активные conntrack-соединения, прирост трафика, Wi‑Fi association через `ubus hostapd`, активное состояние ARP/ND `REACHABLE/DELAY/PROBE/PERMANENT` или успешная проверка ARP/ND + ping.
+- Если у устройства нет активности дольше `offline_grace_sec`, RouterDash сначала проверяет последние IP через `ip neigh` и `ping`, и только после подтверждения отправляет `вышел из сети`.
+- Добавлен параметр `presence_probe_cooldown_sec`, чтобы не спамить проверками и не ловить ложные переключения.
+- Исправлена проблема, из-за которой список Wi‑Fi клиентов не использовался в мониторинге.
 
-- the GitHub installer now works in a strict sequence:
-  1. choose language
-  2. on that language choose action: install or remove
-  3. run the selected action
-- files are downloaded into `/opt/routerdash-installer`
-- permissions are applied before launch
-- the downloaded `routerdash.py` is patched before install
-- local `blinker.py` is included for OpenWrt builds without `python3-blinker`
-- IPv4 display is fixed with a private-IPv4 fallback when network filtering would otherwise hide all addresses
-- if config still contains the old `192.168.0.0/24` while the real LAN is different, the detected LAN network is used automatically
-
-## Install
+## Установка локально
 
 ```sh
-wget -O /tmp/routerdash-installer.sh https://raw.githubusercontent.com/t4kyofc/RouterDASH---OpenWRT/refs/heads/main/install-github-template.sh && sh /tmp/routerdash-installer.sh
+scp -r routerdash_presence_fixed root@192.168.1.1:/tmp/
+ssh root@192.168.1.1
+cd /tmp/routerdash_presence_fixed
+sh install.sh
 ```
 
-## Recommended after applying these changes
+## Рекомендуемые значения
 
-Remove and install again through the new launcher.
+Для задачи «понять, пришёл человек домой или ушёл»:
+
+- `offline_grace_sec`: 120–240 сек
+- `presence_probe_cooldown_sec`: 20–45 сек
+- `poll_interval_ms`: 1000–2000 мс
+
+Если телефон уходит в сон и не отвечает на ping, RouterDash всё равно проверяет ARP/ND после ping, потому что сам ping обычно поднимает ARP-запись даже при заблокированном ICMP.
